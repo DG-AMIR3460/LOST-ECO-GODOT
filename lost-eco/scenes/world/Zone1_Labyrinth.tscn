@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://ckoed00bgn7bi"]
+
+[ext_resource type="Script" uid="uid://2sd8ing3div7" path="res://scripts/systems/Zone1_Labyrinth.gd" id="1_30f01"]
+[ext_resource type="Shader" uid="uid://c07o4507uthr0" path="res://assets/shaders/fog_shader.gdshader" id="2_nvdxt"]
+[ext_resource type="PackedScene" uid="uid://djs36sk77x1a0" path="res://scenes/player/alex.tscn" id="3_ixpdw"]
+[ext_resource type="Script" uid="uid://cm1huiracp77l" path="res://scripts/systems/FollowCamera.gd" id="4_nvdxt"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1wbyk"]
+shader = ExtResource("2_nvdxt")
+shader_parameter/player_pos = Vector2(0.5, 0.5)
+shader_parameter/light_radius = 0.15
+shader_parameter/edge_softness = 0.08
+shader_parameter/fog_color = Color(0.1, 0.1, 0.18, 0.95)
+
+[node name="Zone1_Labyrinth" type="Node2D" unique_id=7738304]
+script = ExtResource("1_30f01")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=359731197]
+visible = false
+
+[node name="FogOverlay" type="ColorRect" parent="CanvasLayer" unique_id=1014188090]
+material = SubResource("ShaderMaterial_1wbyk")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101960786, 0.101960786, 0.18039216, 0.9411765)
+
+[node name="Alex" parent="." unique_id=114682746 instance=ExtResource("3_ixpdw")]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1325552540]
+script = ExtResource("4_nvdxt")

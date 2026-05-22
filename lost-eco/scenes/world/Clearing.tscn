@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://ycdf7mmyx0ft"]
+
+[ext_resource type="Script" uid="uid://lhcr6ssr13vb" path="res://scripts/systems/Clearing.gd" id="1_clrng"]
+[ext_resource type="PackedScene" uid="uid://djs36sk77x1a0" path="res://scenes/player/alex.tscn" id="2_alexc"]
+[ext_resource type="Script" uid="uid://cm1huiracp77l" path="res://scripts/systems/FollowCamera.gd" id="3_camc0"]
+
+[node name="Clearing" type="Node2D"]
+script = ExtResource("1_clrng")
+
+[node name="Alex" parent="." instance=ExtResource("2_alexc")]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("3_camc0")

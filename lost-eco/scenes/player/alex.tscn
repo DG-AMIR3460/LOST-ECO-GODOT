@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://djs36sk77x1a0"]
+
+[ext_resource type="Script" uid="uid://hx2cpkm43hha" path="res://scripts/player/Alex.gd" id="1_gguml"]
+[ext_resource type="Texture2D" uid="uid://clhlecypjdun1" path="res://icon.svg" id="2_dol7q"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pvpg0"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_dol7q")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_dol7q"]
+radius = 5.0
+height = 10.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pvpg0"]
+radius = 16.0
+
+[node name="Alex" type="CharacterBody2D" unique_id=114682746]
+motion_mode = 1
+script = ExtResource("1_gguml")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=994909327]
+scale = Vector2(0.12, 0.12)
+sprite_frames = SubResource("SpriteFrames_pvpg0")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1716210936]
+shape = SubResource("CapsuleShape2D_dol7q")
+
+[node name="InteractArea" type="Area2D" parent="." unique_id=2043830237]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea" unique_id=1480881450]
+shape = SubResource("CircleShape2D_pvpg0")
+
+[node name="MudParticles" type="GPUParticles2D" parent="." unique_id=603341555]
