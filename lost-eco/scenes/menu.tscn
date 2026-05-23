@@ -1,0 +1,111 @@
+[gd_scene format=3 uid="uid://esbpwwx82fy2"]
+
+[ext_resource type="Script" path="res://scripts/menu/menu.gd" id="1_menu"]
+[ext_resource type="Texture2D" uid="uid://ca6rno3gij2ws" path="res://IMAGENES/ChatGPT Image 22 may 2026, 14_54_03.png" id="2_bg"]
+[ext_resource type="FontFile" uid="uid://b8dlcecp7tks6" path="res://Fonts/AmaticSC-Bold.ttf" id="3_font_title"]
+[ext_resource type="FontFile" uid="uid://dq4dx2fbhaqe6" path="res://PatrickHand-Regular.ttf" id="4_font_btn"]
+[ext_resource type="Script" path="res://scripts/menu/menu_button.gd" id="5_btn_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_plank"]
+bg_color = Color(0.36, 0.24, 0.12, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.11, 0.05, 0.9)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_plank_hover"]
+bg_color = Color(0.48, 0.32, 0.14, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.78, 0.28, 0.95)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+shadow_color = Color(0.95, 0.72, 0.2, 0.45)
+shadow_size = 4
+
+[sub_resource type="Theme" id="Theme_menu"]
+default_font = ExtResource("4_font_btn")
+Button/colors/font_color = Color(0.96, 0.9, 0.72, 1)
+Button/colors/font_hover_color = Color(1, 0.95, 0.55, 1)
+Button/colors/font_pressed_color = Color(0.85, 0.75, 0.45, 1)
+Button/font_sizes/font_size = 14
+Button/styles/normal = SubResource("StyleBoxFlat_plank")
+Button/styles/hover = SubResource("StyleBoxFlat_plank_hover")
+Button/styles/pressed = SubResource("StyleBoxFlat_plank_hover")
+Button/styles/focus = SubResource("StyleBoxFlat_plank")
+
+[node name="Menu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_menu")
+script = ExtResource("1_menu")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 200.0
+offset_bottom = 34.0
+theme_override_colors/font_color = Color(0.98, 0.9, 0.55, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.03, 0.01, 0.85)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("3_font_title")
+theme_override_font_sizes/font_size = 28
+text = "LOST ECO"
+horizontal_alignment = 1
+
+[node name="Buttons" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 224.0
+offset_top = 48.0
+offset_right = 312.0
+offset_bottom = 132.0
+theme_override_constants/separation = 6
+
+[node name="Jugar" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(88, 22)
+layout_mode = 2
+focus_mode = 0
+text = "Jugar"
+script = ExtResource("5_btn_script")
+
+[node name="Opciones" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(88, 22)
+layout_mode = 2
+focus_mode = 0
+text = "Opciones"
+script = ExtResource("5_btn_script")
+
+[node name="Salir" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(88, 22)
+layout_mode = 2
+focus_mode = 0
+text = "Salir"
+script = ExtResource("5_btn_script")

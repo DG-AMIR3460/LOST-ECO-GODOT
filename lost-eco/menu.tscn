@@ -1,0 +1,152 @@
+[gd_scene format=3 uid="uid://ioyhs5rntwg0"]
+
+[ext_resource type="Texture2D" uid="uid://ca6rno3gij2ws" path="res://IMAGENES/ChatGPT Image 22 may 2026, 14_54_03.png" id="1_mae5d"]
+[ext_resource type="FontFile" uid="uid://dq4dx2fbhaqe6" path="res://PatrickHand-Regular.ttf" id="2_4hy44"]
+[ext_resource type="FontFile" uid="uid://b8dlcecp7tks6" path="res://Fonts/AmaticSC-Bold.ttf" id="3_ytr4m"]
+
+[sub_resource type="GDScript" id="GDScript_l48gv"]
+script/source = "extends Control
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[sub_resource type="GDScript" id="GDScript_ecwwl"]
+script/source = "extends Label
+
+@export var curve_height := 40.0
+@export var letter_spacing := 35.0
+
+func _ready():
+	modulate.a = 0.0 # oculta el texto original
+
+func _process(delta):
+	queue_redraw()
+
+func _draw():
+
+	var font = get_theme_font(\"font\")
+	var font_size = get_theme_font_size(\"font_size\")
+
+	if font == null:
+		return
+
+	var total_width = 0.0
+
+	# calcular ancho total
+	for i in text.length():
+		var char = text[i]
+		total_width += font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + letter_spacing
+
+	var start_x = -total_width / 2.0
+
+	var x = start_x
+
+	for i in text.length():
+
+		var char = text[i]
+
+		var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+
+		# curva tipo arco
+		var t = float(i) / max(text.length() - 1, 1)
+		var y = -sin(t * PI) * curve_height
+
+		draw_string(
+			font,
+			Vector2(x, y),
+			char,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size
+		)
+
+		x += char_width + letter_spacing"
+
+[node name="Menu" type="Control" unique_id=1229479997]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_top = -1.0
+offset_right = 1.0
+offset_bottom = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = SubResource("GDScript_l48gv")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1394084299]
+layout_mode = 0
+offset_left = -1.0
+offset_top = 2.0
+offset_right = 319.0
+offset_bottom = 179.0
+color = Color(0.9852933, 0.8342739, 0.8442586, 1)
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=707745188]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_mae5d")
+expand_mode = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=273573693]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.15
+anchor_bottom = 0.25
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 157.92
+offset_bottom = 125.0
+theme_override_constants/separation = 15
+
+[node name="Jugar" type="Button" parent="VBoxContainer" unique_id=480595958]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_4hy44")
+text = "JUGAR"
+flat = true
+
+[node name="Opciones" type="Button" parent="VBoxContainer" unique_id=1325780627]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_4hy44")
+text = "OPCIONES"
+flat = true
+
+[node name="Salir" type="Button" parent="VBoxContainer" unique_id=88125534]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_4hy44")
+text = "SALIR"
+flat = true
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="." unique_id=1899554399]
+
+[node name="AudioStreamPlayer2D2" type="AudioStreamPlayer2D" parent="." unique_id=1256124961]
+
+[node name="texto" type="Label" parent="." unique_id=868531093]
+texture_filter = 4
+layout_mode = 0
+offset_left = 14.0
+offset_top = 4.0
+offset_right = 153.0
+offset_bottom = 80.0
+theme_override_colors/font_color = Color(1, 0.9490196, 0.8392157, 1)
+theme_override_fonts/font = ExtResource("3_ytr4m")
+theme_override_font_sizes/font_size = 40
+text = "LOST ECO"
+horizontal_alignment = 1
+script = SubResource("GDScript_ecwwl")
+curve_height = 100.0
+letter_spacing = 522.0
