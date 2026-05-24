@@ -187,6 +187,8 @@ func _spawn_echo(pos: Vector2) -> void:
 	)
 
 func _collect_echo(node: Node) -> void:
+	if minimap:
+		minimap.mark_echo_collected_at(node.global_position, TS)
 	echoes_collected += 1
 	node.queue_free()
 	GameManager.add_score(100)
@@ -237,21 +239,16 @@ func _spawn_exit(pos: Vector2) -> void:
 
 	exit_area = Area2D.new()
 	exit_area.global_position = center
+	exit_area.monitoring = true
+	exit_area.collision_mask = 1
 	add_child(exit_area)
 	var c = CollisionShape2D.new()
 	var s = CircleShape2D.new()
-	s.radius = 12
+	s.radius = 16
 	c.shape = s
 	exit_area.add_child(c)
 	exit_area.body_entered.connect(func(body):
-		if not body.is_in_group("player"): return
-		if exit_unlocked:
-			_zone_complete()
-		else:
-			DialogueManager.show_corner_notice(
-				"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
-				Color(0.65, 0.70, 0.95), 2.0
-			)
+		_try_use_exit(body)
 	)
 
 func _unlock_exit() -> void:
@@ -392,6 +389,26 @@ func _process(delta: float) -> void:
 			ar.global_position = en.global_position
 
 	_update_minimap()
+	_check_exit_overlap()
+
+
+func _try_use_exit(body: Node) -> void:
+	if not body.is_in_group("player"):
+		return
+	if exit_unlocked:
+		_zone_complete()
+	else:
+		DialogueManager.show_corner_notice(
+			"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
+			Color(0.65, 0.70, 0.95), 2.0
+		)
+
+
+func _check_exit_overlap() -> void:
+	if not exit_unlocked or _transitioning or exit_area == null or GameManager.player == null:
+		return
+	if exit_area.overlaps_body(GameManager.player):
+		_zone_complete()
 
 # ── Niebla ───────────────────────────────────────────────────────────────────
 func _setup_fog() -> void:
@@ -425,11 +442,10 @@ func _setup_hud() -> void:
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
+		"enemy": Color(0.92, 0.30, 0.35),
 	})
-	minimap.position = Vector2(252, 130)
+	minimap.position = Vector2(224, 98)
 	hud_layer.add_child(minimap)
-	var lbl_map = _make_label(Vector2(252, 122), Color(0.55, 0.55, 0.65))
-	lbl_map.text = "MAPA"
 
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
@@ -466,20 +482,38 @@ func _update_minimap() -> void:
 	minimap.set_player_world_pos(GameManager.player.global_position, TS)
 	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
 	minimap.set_exit_open(exit_unlocked)
+	minimap.set_enemy_tiles(_get_enemy_minimap_tiles())
+
+
+func _get_enemy_minimap_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for ed in enemies:
+		var en: Node2D = ed["node"]
+		if is_instance_valid(en):
+			tiles.append(Vector2i(
+				int(floor(en.global_position.x / TS)),
+				int(floor(en.global_position.y / TS))
+			))
+	return tiles
 
 
 func _zone_complete() -> void:
-	if _transitioning: return
+	if _transitioning:
+		return
 	_transitioning = true
 	set_process(false)
+	GameManager.close_pause()
+	if GameManager.player:
+		GameManager.player.set_can_move(false)
 	QuestManager.advance_quest("zone1")
 	GameManager.update_empathy(0.33)
 	GameManager.add_score(500)
+	DialogueManager.show_corner_notice("¡Zona completada! Pasando al nivel 2...", Color(0.95, 0.90, 0.50), 3.0)
 	var refl := StoryReflections.get_zone_complete(1)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 5.0)
-	await get_tree().create_timer(5.0).timeout
-	get_tree().change_scene_to_file("res://scenes/world/Zone2_Swamp.tscn")
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 3.5)
+	await get_tree().create_timer(3.5).timeout
+	await SceneTransition.change_scene("res://scenes/world/Zone2_Swamp.tscn")
 
 func _on_empathy_changed(v: float) -> void:
 	modulate = Color(0.5 + v * 0.5, 0.5 + v * 0.5, 0.6 + v * 0.4)

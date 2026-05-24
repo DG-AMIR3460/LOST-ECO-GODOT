@@ -177,6 +177,8 @@ func _spawn_echo(pos: Vector2) -> void:
 
 
 func _collect_echo(node: Node) -> void:
+	if minimap:
+		minimap.mark_echo_collected_at(node.global_position, TS)
 	echoes_collected += 1
 	node.queue_free()
 	GameManager.add_score(150)
@@ -437,12 +439,12 @@ func _process(delta: float) -> void:
 		"floor": FLOOR_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
-		"exit": Color(0.55, 0.20, 0.85),
+		"exit": Color(0.65, 0.35, 0.95),
+		"enemy": Color(0.85, 0.40, 0.95),
+		"border": Color(0.70, 0.50, 0.95, 0.9),
 	})
-	minimap.position = Vector2(252, 130)
+	minimap.position = Vector2(224, 98)
 	hud_layer.add_child(minimap)
-	var lbl_map = _make_label(Vector2(252, 122), Color(0.55, 0.45, 0.75))
-	lbl_map.text = "MAPA"
 
 	_update_hud()
 
@@ -483,6 +485,19 @@ func _update_minimap() -> void:
 	minimap.set_player_world_pos(GameManager.player.global_position, TS)
 	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
 	minimap.set_exit_open(boss_unlocked)
+	minimap.set_enemy_tiles(_get_enemy_minimap_tiles())
+
+
+func _get_enemy_minimap_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for ed in enemies:
+		var en: Node2D = ed["node"]
+		if is_instance_valid(en):
+			tiles.append(Vector2i(
+				int(floor(en.global_position.x / TS)),
+				int(floor(en.global_position.y / TS))
+			))
+	return tiles
 
 
 func _zone_complete() -> void:

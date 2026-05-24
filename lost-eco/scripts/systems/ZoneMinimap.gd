@@ -1,27 +1,42 @@
 extends Control
 class_name ZoneMinimap
-## Minimapa compacto en esquina de pantalla.
+## Minimapa mejorado: panel, leyenda, ecos recolectados y enemigos.
 
 
-const TILE_PX := 2.0
+const TILE_PX := 2.6
+const PADDING := 4.0
+const HEADER_H := 10.0
+const LEGEND_H := 9.0
 
 var _map: Array = []
 var _cols: int = 0
 var _rows: int = 0
 var _echo_tiles: Array[Vector2i] = []
+var _collected_echoes: Array[Vector2i] = []
+var _enemy_tiles: Array[Vector2i] = []
 var _exit_tile: Vector2i = Vector2i(-1, -1)
 var _boss_tile: Vector2i = Vector2i(-1, -1)
-var _start_tile: Vector2i = Vector2i(-1, -1)
 
 var _floor_color: Color = Color(0.18, 0.15, 0.22)
 var _wall_color: Color = Color(0.08, 0.07, 0.12)
-var _player_color: Color = Color(0.35, 0.75, 1.0)
-var _echo_color: Color = Color(0.95, 0.90, 0.40)
-var _exit_color: Color = Color(0.25, 0.90, 0.45)
+var _player_color: Color = Color(0.40, 0.82, 1.0)
+var _echo_color: Color = Color(0.98, 0.92, 0.38)
+var _exit_color: Color = Color(0.28, 0.92, 0.48)
+var _enemy_color: Color = Color(0.92, 0.28, 0.32)
+var _border_color: Color = Color(0.85, 0.72, 0.28, 0.85)
 
-var _player_tile: Vector2i = Vector2i.ZERO
+var _player_tile: Vector2i = Vector2i(-1, -1)
+var _display_player: Vector2 = Vector2.ZERO
 var _echoes_left: int = 0
 var _exit_open: bool = false
+var _pulse: float = 0.0
+var _map_origin: Vector2 = Vector2.ZERO
+var _map_size: Vector2 = Vector2.ZERO
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_process(true)
 
 
 func setup(map: Array, colors: Dictionary = {}) -> void:
@@ -33,24 +48,28 @@ func setup(map: Array, colors: Dictionary = {}) -> void:
 	_player_color = colors.get("player", _player_color)
 	_echo_color = colors.get("echo", _echo_color)
 	_exit_color = colors.get("exit", _exit_color)
+	_enemy_color = colors.get("enemy", _enemy_color)
+	_border_color = colors.get("border", _border_color)
 
 	_echo_tiles.clear()
+	_collected_echoes.clear()
+	_enemy_tiles.clear()
 	for y in _rows:
 		for x in _cols:
-			var c: String = map[y][x]
-			match c:
+			match map[y][x]:
 				"E":
 					_echo_tiles.append(Vector2i(x, y))
 				"X":
 					_exit_tile = Vector2i(x, y)
 				"B":
 					_boss_tile = Vector2i(x, y)
-				"S":
-					_start_tile = Vector2i(x, y)
 
-	custom_minimum_size = Vector2(_cols * TILE_PX, _rows * TILE_PX + 8)
+	_map_size = Vector2(_cols * TILE_PX, _rows * TILE_PX)
+	_map_origin = Vector2(PADDING, PADDING + HEADER_H)
+	var total_w := _map_size.x + PADDING * 2.0
+	var total_h := HEADER_H + _map_size.y + LEGEND_H + PADDING * 2.0
+	custom_minimum_size = Vector2(total_w, total_h)
 	size = custom_minimum_size
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_redraw()
 
 
@@ -61,6 +80,12 @@ func set_player_world_pos(world_pos: Vector2, tile_size: float) -> void:
 		int(floor(world_pos.x / tile_size)),
 		int(floor(world_pos.y / tile_size))
 	)
+	var target := _map_origin + Vector2(
+		(_player_tile.x + 0.5) * TILE_PX,
+		(_player_tile.y + 0.5) * TILE_PX
+	)
+	if _display_player == Vector2.ZERO:
+		_display_player = target
 	queue_redraw()
 
 
@@ -74,34 +99,117 @@ func set_exit_open(open: bool) -> void:
 	queue_redraw()
 
 
+func mark_echo_collected_at(world_pos: Vector2, tile_size: float) -> void:
+	if tile_size <= 0.0:
+		return
+	var tile := Vector2i(
+		int(floor(world_pos.x / tile_size)),
+		int(floor(world_pos.y / tile_size))
+	)
+	if tile not in _collected_echoes:
+		_collected_echoes.append(tile)
+	queue_redraw()
+
+
+func set_enemy_tiles(tiles: Array[Vector2i]) -> void:
+	_enemy_tiles = tiles
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	_pulse += delta * 3.5
+	if _player_tile.x >= 0:
+		var target := _map_origin + Vector2(
+			(_player_tile.x + 0.5) * TILE_PX,
+			(_player_tile.y + 0.5) * TILE_PX
+		)
+		_display_player = _display_player.lerp(target, minf(1.0, delta * 14.0))
+		queue_redraw()
+
+
 func _draw() -> void:
+	var total := size
+	draw_rect(Rect2(Vector2.ZERO, total), Color(0.03, 0.025, 0.06, 0.92))
+	draw_rect(Rect2(Vector2(0.5, 0.5), total - Vector2(1, 1)), _border_color, false, 1.0)
+
+	_draw_label(Vector2(PADDING, 2.0), "MAPA", Color(0.92, 0.84, 0.45), 8)
+
 	for y in _rows:
 		for x in _cols:
-			var tile := Vector2(x * TILE_PX, y * TILE_PX)
-			var rect := Rect2(tile, Vector2(TILE_PX, TILE_PX))
+			var pos := _map_origin + Vector2(x * TILE_PX, y * TILE_PX)
+			var rect := Rect2(pos, Vector2(TILE_PX, TILE_PX))
 			if _map[y][x] == "#":
 				draw_rect(rect, _wall_color)
 			else:
-				draw_rect(rect, _floor_color)
+				draw_rect(rect, _floor_color.lightened(0.04))
 
-	if _echoes_left > 0:
-		for t in _echo_tiles:
-			draw_rect(Rect2(t.x * TILE_PX, t.y * TILE_PX, TILE_PX, TILE_PX), _echo_color)
+	for t in _enemy_tiles:
+		_draw_enemy_marker(_tile_center(t))
+
+	for t in _echo_tiles:
+		if t in _collected_echoes:
+			continue
+		var pulse_a := 0.65 + sin(_pulse + t.x * 0.4 + t.y * 0.3) * 0.35
+		_draw_echo_marker(_tile_center(t), Color(_echo_color.r, _echo_color.g, _echo_color.b, pulse_a))
 
 	if _exit_tile.x >= 0:
-		var exit_c := _exit_color if _exit_open else Color(0.35, 0.35, 0.40)
+		var exit_c := _exit_color if _exit_open else Color(0.32, 0.32, 0.38)
+		if _exit_open:
+			exit_c = exit_c.lightened(sin(_pulse) * 0.12)
 		draw_rect(
-			Rect2(_exit_tile.x * TILE_PX, _exit_tile.y * TILE_PX, TILE_PX, TILE_PX),
+			Rect2(_map_origin + Vector2(_exit_tile.x * TILE_PX, _exit_tile.y * TILE_PX), Vector2(TILE_PX, TILE_PX)),
 			exit_c
 		)
-	elif _boss_tile.x >= 0 and _exit_open:
+	elif _boss_tile.x >= 0:
+		var boss_c := _exit_color if _exit_open else Color(0.38, 0.18, 0.52)
+		if _exit_open:
+			boss_c = boss_c.lightened(sin(_pulse) * 0.15)
 		draw_rect(
-			Rect2(_boss_tile.x * TILE_PX, _boss_tile.y * TILE_PX, TILE_PX, TILE_PX),
-			_exit_color
+			Rect2(_map_origin + Vector2(_boss_tile.x * TILE_PX, _boss_tile.y * TILE_PX), Vector2(TILE_PX, TILE_PX)),
+			boss_c
 		)
 
-	if _player_tile.x >= 0 and _player_tile.y >= 0:
-		draw_rect(
-			Rect2(_player_tile.x * TILE_PX, _player_tile.y * TILE_PX, TILE_PX, TILE_PX),
-			_player_color
-		)
+	if _display_player != Vector2.ZERO:
+		draw_circle(_display_player, TILE_PX * 0.55, Color(1, 1, 1, 0.35))
+		draw_circle(_display_player, TILE_PX * 0.38, _player_color)
+		draw_circle(_display_player, TILE_PX * 0.16, Color(1, 1, 1, 0.85))
+
+	var legend_y := _map_origin.y + _map_size.y + 2.0
+	_draw_legend(Vector2(PADDING, legend_y))
+
+
+func _tile_center(tile: Vector2i) -> Vector2:
+	return _map_origin + Vector2((tile.x + 0.5) * TILE_PX, (tile.y + 0.5) * TILE_PX)
+
+
+func _draw_echo_marker(center: Vector2, color: Color) -> void:
+	draw_circle(center, TILE_PX * 0.42, Color(color.r, color.g, color.b, color.a * 0.35))
+	draw_circle(center, TILE_PX * 0.28, color)
+
+
+func _draw_enemy_marker(center: Vector2) -> void:
+	draw_circle(center, TILE_PX * 0.30, Color(_enemy_color.r, _enemy_color.g, _enemy_color.b, 0.45))
+	draw_rect(
+		Rect2(center - Vector2(TILE_PX * 0.18, TILE_PX * 0.18), Vector2(TILE_PX * 0.36, TILE_PX * 0.36)),
+		_enemy_color
+	)
+
+
+func _draw_legend(origin: Vector2) -> void:
+	var items: Array = [
+		[_player_color, "Tú"],
+		[_echo_color, "Eco"],
+		[_exit_color, "Fin"],
+		[_enemy_color, "Enm"],
+	]
+	var x := origin.x
+	for item in items:
+		draw_circle(Vector2(x + 2.0, origin.y + 4.5), 1.8, item[0])
+		_draw_label(Vector2(x + 5.0, origin.y), item[1], Color(0.68, 0.68, 0.74), 6)
+		x += 20.0
+
+
+func _draw_label(pos: Vector2, text: String, color: Color, size: int) -> void:
+	var font := ThemeDB.fallback_font
+	if font:
+		draw_string(font, pos + Vector2(0, size), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
