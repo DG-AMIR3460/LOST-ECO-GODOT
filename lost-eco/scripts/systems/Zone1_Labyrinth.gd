@@ -63,16 +63,16 @@ var _transitioning: bool = false
 # ── Enemigos (Sombras del Acoso) ──────────────────────────────────────────────
 var enemies: Array = []   # [{node, area, speed}]
 
-# Posiciones tile (col, fila) — todas en suelo libre
+# Posiciones tile (col, fila) — 8 sombras repartidas por el mapa
 const ENEMY_TILES = [
-	Vector2i(15,  2),   # Area 1 (centro)
-	Vector2i(20,  4),   # Area 1 (derecha)
-	Vector2i( 8,  3),   # Area 1 (izquierda-media)  ← NUEVO
-	Vector2i( 5,  7),   # Area 2 (izquierda)
-	Vector2i(20,  8),   # Area 2 (derecha)           ← NUEVO
-	Vector2i(25, 12),   # Area 3 (derecha)
-	Vector2i( 8, 13),   # Area 3 (izquierda)         ← NUEVO
-	Vector2i(10, 17),   # Area 4 (izquierda)
+	Vector2i(15,  2),
+	Vector2i(20,  4),
+	Vector2i( 8,  3),
+	Vector2i( 5,  7),
+	Vector2i(20,  8),
+	Vector2i(25, 12),
+	Vector2i( 8, 13),
+	Vector2i(10, 17),
 ]
 
 const ENEMY_MSGS = [
@@ -87,10 +87,10 @@ const ENEMY_MSGS = [
 ]
 
 # ── Pulso de Luz (defensa) ────────────────────────────────────────────────────
-var light_charges: int   = 0    # Empieza sin cargas — gana la primera recogiendo un eco
+var light_charges: int   = 1    # Empieza con 1 carga para aprender el Pulso de Luz
 const MAX_CHARGES: int   = 3
-const PULSE_RADIUS: float = 50.0
-const STUN_TIME: float    = 1.8
+const PULSE_RADIUS: float = 68.0
+const STUN_TIME: float    = 2.2
 
 # ── HUD ──────────────────────────────────────────────────────────────────────
 var hud_layer: CanvasLayer = null
@@ -98,6 +98,7 @@ var lbl_score:  Label = null
 var lbl_health: Label = null
 var lbl_echo:   Label = null
 var lbl_light:  Label = null
+var minimap: ZoneMinimap = null
 
 # ══════════════════════════════════════════════════════════════════════════════
 func _ready() -> void:
@@ -199,11 +200,13 @@ func _collect_echo(node: Node) -> void:
 	# +1 carga de luz
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"Eco %d/%d recogido  +100 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
-			GameManager.player.global_position + Vector2(0, -22), Color(0.9, 0.95, 0.5)
-		)
+	var refl := StoryReflections.get_echo_reflection(1, echoes_collected)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
+	DialogueManager.show_corner_notice(
+		"Eco %d/%d  +100 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
+		Color(0.9, 0.95, 0.5), 2.0
+	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_exit()
 
@@ -245,9 +248,9 @@ func _spawn_exit(pos: Vector2) -> void:
 		if exit_unlocked:
 			_zone_complete()
 		else:
-			DialogueManager.show_floating_text(
-				"Salida bloqueada...\nRecoge los %d ecos primero." % TOTAL_ECHOES,
-				body.global_position + Vector2(0, -25), Color(0.6, 0.6, 0.9)
+			DialogueManager.show_corner_notice(
+				"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
+				Color(0.65, 0.70, 0.95), 2.0
 			)
 	)
 
@@ -260,10 +263,7 @@ func _unlock_exit() -> void:
 		tween.tween_property(exit_poly, "modulate", Color(1.8, 2.2, 1.8), 0.45)
 		tween.tween_property(exit_poly, "modulate", Color(1.0, 1.0, 1.0),  0.45)
 	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"¡La salida se abrió!\nPortal VERDE → esquina inferior derecha (fila 18, col 30).",
-			GameManager.player.global_position + Vector2(0, -30), Color(0.2, 1.0, 0.5)
-		)
+		DialogueManager.show_corner_notice("¡Salida abierta! → abajo derecha.", Color(0.25, 1.0, 0.50), 3.0)
 
 # ── Enemigos (Sombras del Acoso) ──────────────────────────────────────────────
 func _spawn_enemies() -> void:
@@ -279,6 +279,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"pulse": Color(1.55, 0.35, 0.40),
 		"eyes": Color(1.0, 0.20, 0.18),
 		"wisp": Color(0.30, 0.05, 0.12, 0.70),
+		"scale": 0.68,
 	})
 
 	# Área de daño
@@ -287,7 +288,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	add_child(area)
 	var c = CollisionShape2D.new()
 	var s = CircleShape2D.new()
-	s.radius = 8
+	s.radius = 6
 	c.shape = s
 	area.add_child(c)
 
@@ -300,19 +301,18 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	enemies.append({
 		"node":  enemy,
 		"area":  area,
-		"speed": 20.0 + idx * 1.8,   # 20–33 px/s — más agresivos
+		"speed": 12.0 + idx * 1.0,
 	})
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
 		return
-	p.set_meta("enemy_cd", 1.5)   # cooldown reducido: golpes más frecuentes
+	p.set_meta("enemy_cd", 2.2)
 	GameManager.take_damage()
 	if is_instance_valid(p):
-		p.take_hit(source_pos)    # knockback + flash rojo en el personaje
-		DialogueManager.show_floating_text(
-			message, p.global_position + Vector2(0, -28), Color(1.0, 0.35, 0.35)
-		)
+		p.take_hit(source_pos)
+		var hit := StoryReflections.get_enemy_hit()
+		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 3.0)
 
 # ── Pulso de Luz ──────────────────────────────────────────────────────────────
 func _input(event: InputEvent) -> void:
@@ -339,15 +339,13 @@ func _use_light_pulse() -> void:
 			var push_dir = (en.global_position - player_pos).normalized()
 			if push_dir == Vector2.ZERO:
 				push_dir = Vector2.RIGHT
-			en.global_position += push_dir * 55.0
+			en.global_position += push_dir * 62.0
 			en.set_meta("stunned", STUN_TIME)
 			var ar: Area2D = ed["area"]
 			if is_instance_valid(ar):
 				ar.global_position = en.global_position
 
-	DialogueManager.show_floating_text(
-		"¡Pulso de Luz!", player_pos + Vector2(0, -25), Color(1.0, 1.0, 0.3)
-	)
+	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(1.0, 1.0, 0.35), 1.5)
 
 	# Recarga automática a los 8 segundos
 	await get_tree().create_timer(8.0).timeout
@@ -393,6 +391,8 @@ func _process(delta: float) -> void:
 		if is_instance_valid(ar):
 			ar.global_position = en.global_position
 
+	_update_minimap()
+
 # ── Niebla ───────────────────────────────────────────────────────────────────
 func _setup_fog() -> void:
 	var fog = get_node_or_null("CanvasLayer/FogOverlay")
@@ -403,7 +403,7 @@ func _setup_fog() -> void:
 		if fog_material:
 			fog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			fog_material.set_shader_parameter("player_pos",  Vector2(0.5, 0.5))
-			fog_material.set_shader_parameter("light_radius", 0.12)
+			fog_material.set_shader_parameter("light_radius", 0.16)
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
 func _setup_hud() -> void:
@@ -417,7 +417,19 @@ func _setup_hud() -> void:
 	lbl_light  = _make_label(Vector2(4, 35), Color(0.4, 0.8, 1.0))
 
 	var lbl_hint = _make_label(Vector2(4, 46), Color(0.6, 0.6, 0.7))
-	lbl_hint.text = "[J] Pulso de Luz"
+	lbl_hint.text = "[J] Pulso  [ESC] Menú"
+
+	minimap = ZoneMinimap.new()
+	minimap.setup(MAP, {
+		"floor": FLOOR_COLOR,
+		"wall": WALL_COLOR,
+		"echo": ECHO_COLOR,
+		"exit": EXIT_OPEN_COLOR,
+	})
+	minimap.position = Vector2(252, 130)
+	hud_layer.add_child(minimap)
+	var lbl_map = _make_label(Vector2(252, 122), Color(0.55, 0.55, 0.65))
+	lbl_map.text = "MAPA"
 
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
@@ -447,7 +459,15 @@ func _update_hud() -> void:
 		for _i in (MAX_CHARGES - light_charges): li += "○"
 		lbl_light.text = "LUZ:  " + li
 
-# ── Completar zona ────────────────────────────────────────────────────────────
+
+func _update_minimap() -> void:
+	if minimap == null or GameManager.player == null:
+		return
+	minimap.set_player_world_pos(GameManager.player.global_position, TS)
+	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
+	minimap.set_exit_open(exit_unlocked)
+
+
 func _zone_complete() -> void:
 	if _transitioning: return
 	_transitioning = true
@@ -455,12 +475,10 @@ func _zone_complete() -> void:
 	QuestManager.advance_quest("zone1")
 	GameManager.update_empathy(0.33)
 	GameManager.add_score(500)
-	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"Las palabras duelen... pero la luz puede curarlas.\n+500 puntos — ¡Zona completada!",
-			GameManager.player.global_position + Vector2(0, -30), Color(0.9, 0.95, 0.6)
-		)
-	await get_tree().create_timer(3.0).timeout
+	var refl := StoryReflections.get_zone_complete(1)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 5.0)
+	await get_tree().create_timer(5.0).timeout
 	get_tree().change_scene_to_file("res://scenes/world/Zone2_Swamp.tscn")
 
 func _on_empathy_changed(v: float) -> void:

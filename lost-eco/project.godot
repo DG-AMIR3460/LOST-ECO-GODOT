@@ -25,6 +25,7 @@ SettingsManager="*res://autoloads/SettingsManager.gd"
 SceneTransition="*res://autoloads/SceneTransition.gd"
 UISounds="*res://autoloads/UISounds.gd"
 MenuStateMachine="*res://autoloads/MenuStateMachine.gd"
+StoryReflections="*res://autoloads/StoryReflections.gd"
 
 [display]
 

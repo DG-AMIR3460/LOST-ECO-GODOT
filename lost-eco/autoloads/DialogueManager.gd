@@ -5,6 +5,7 @@ signal dialogue_finished
 
 const FONT_PATH := "res://PatrickHand-Regular.ttf"
 const TITLE_FONT_PATH := "res://Fonts/AmaticSC-Bold.ttf"
+const CORNER_WIDTH := 148.0
 
 var dialogue_box: Control = null
 var current_lines: Array[String] = []
@@ -13,6 +14,9 @@ var is_active: bool = false
 
 var _message_layer: CanvasLayer
 var _active_banner: Control
+var _corner_panel: PanelContainer
+var _corner_tween: Tween
+var _intro_tween: Tween
 var _ui_font: Font
 var _title_font: Font
 
@@ -61,49 +65,107 @@ func _end_dialogue() -> void:
 
 func show_zone_intro(title: String, objective: String, hint: String, accent: Color = Color(0.95, 0.88, 0.45)) -> void:
 	_ensure_message_layer()
-	if _active_banner and is_instance_valid(_active_banner):
-		_active_banner.queue_free()
+	dismiss_zone_intro()
 
-	var banner := _build_intro_banner(title, objective, hint, accent)
+	var banner := _build_compact_panel(title, objective, hint, accent, 11, 9)
+	banner.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	banner.offset_left = 4.0
+	banner.offset_top = 52.0
+	banner.offset_right = 4.0 + CORNER_WIDTH
 	_message_layer.add_child(banner)
 	_active_banner = banner
 
 	banner.modulate.a = 0.0
-	banner.scale = Vector2(0.94, 0.94)
+	if _intro_tween and _intro_tween.is_valid():
+		_intro_tween.kill()
+	_intro_tween = create_tween()
+	_intro_tween.tween_property(banner, "modulate:a", 1.0, 0.2)
+	_intro_tween.tween_interval(3.0)
+	_intro_tween.tween_property(banner, "modulate:a", 0.0, 0.25)
+	_intro_tween.tween_callback(func() -> void:
+		_active_banner = null
+		_unbind_intro_dismiss_on_move()
+		if is_instance_valid(banner):
+			banner.queue_free()
+	)
+	_bind_intro_dismiss_on_move()
+
+
+func dismiss_zone_intro() -> void:
+	if not _active_banner or not is_instance_valid(_active_banner):
+		return
+	if _intro_tween and _intro_tween.is_valid():
+		_intro_tween.kill()
+	var banner := _active_banner
+	_active_banner = null
+	_unbind_intro_dismiss_on_move()
 	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(banner, "modulate:a", 1.0, 0.35).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(banner, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK)
-	tween.set_parallel(false)
-	tween.tween_interval(6.0)
-	tween.tween_property(banner, "modulate:a", 0.0, 0.45)
+	tween.tween_property(banner, "modulate:a", 0.0, 0.12)
 	tween.tween_callback(banner.queue_free)
 
 
-func show_floating_text(text: String, world_position: Vector2, color: Color = Color.WHITE, duration: float = 2.8) -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
+func show_corner_notice(text: String, color: Color = Color(0.92, 0.90, 0.82), duration: float = 3.0) -> void:
+	_show_corner_panel("", text, color, duration, 9, false)
 
-	var bubble := _build_world_bubble(text, color)
-	scene.add_child(bubble)
-	bubble.reset_size()
-	bubble.global_position = world_position + Vector2(-bubble.size.x * 0.5, -bubble.size.y - 6)
 
-	bubble.modulate.a = 0.0
-	bubble.scale = Vector2(0.88, 0.88)
-	var tween := bubble.create_tween()
-	tween.tween_property(bubble, "modulate:a", 1.0, 0.15)
-	tween.parallel().tween_property(bubble, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
-	tween.tween_interval(maxf(0.8, duration - 0.8))
-	tween.tween_property(bubble, "position:y", bubble.position.y - 16, 0.55)
-	tween.parallel().tween_property(bubble, "modulate:a", 0.0, 0.55)
-	tween.tween_callback(bubble.queue_free)
+func show_reflection(title: String, body: String, accent: Color, duration: float = 4.5) -> void:
+	_show_corner_panel(title, body, accent, duration, 9, true)
+
+
+func show_floating_text(text: String, _world_position: Vector2 = Vector2.ZERO, color: Color = Color.WHITE, duration: float = 2.8) -> void:
+	show_corner_notice(text, color, duration)
 
 
 func show_memory_fragment(fragment_id: int, text: String, color: Color) -> void:
 	if dialogue_box:
 		dialogue_box.show_memory(fragment_id, text, color)
+
+
+func _show_corner_panel(title: String, body: String, accent: Color, duration: float, font_size: int, is_reflection: bool) -> void:
+	_ensure_message_layer()
+	if _corner_panel and is_instance_valid(_corner_panel):
+		_corner_panel.queue_free()
+	if _corner_tween and _corner_tween.is_valid():
+		_corner_tween.kill()
+
+	var panel := _build_compact_panel(title, body, "", accent, font_size + 1 if is_reflection else font_size, font_size, is_reflection)
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.offset_left = 4.0
+	panel.offset_bottom = -4.0
+	panel.offset_right = 4.0 + CORNER_WIDTH
+	panel.offset_top = -52.0 if is_reflection else -38.0
+	_message_layer.add_child(panel)
+	_corner_panel = panel
+
+	panel.modulate.a = 0.0
+	_corner_tween = create_tween()
+	_corner_tween.tween_property(panel, "modulate:a", 1.0, 0.18)
+	_corner_tween.tween_interval(duration)
+	_corner_tween.tween_property(panel, "modulate:a", 0.0, 0.3)
+	_corner_tween.tween_callback(func() -> void:
+		if _corner_panel == panel:
+			_corner_panel = null
+		if is_instance_valid(panel):
+			panel.queue_free()
+	)
+
+
+func _bind_intro_dismiss_on_move() -> void:
+	if GameManager.player == null:
+		call_deferred("_bind_intro_dismiss_on_move")
+		return
+	if not GameManager.player.action_performed.is_connected(_on_player_action_dismiss_intro):
+		GameManager.player.action_performed.connect(_on_player_action_dismiss_intro)
+
+
+func _unbind_intro_dismiss_on_move() -> void:
+	if GameManager.player and GameManager.player.action_performed.is_connected(_on_player_action_dismiss_intro):
+		GameManager.player.action_performed.disconnect(_on_player_action_dismiss_intro)
+
+
+func _on_player_action_dismiss_intro(action_name: String, _intensity: float) -> void:
+	if action_name == "move":
+		dismiss_zone_intro()
 
 
 func _ensure_message_layer() -> void:
@@ -115,72 +177,53 @@ func _ensure_message_layer() -> void:
 	add_child(_message_layer)
 
 
-func _build_intro_banner(title: String, objective: String, hint: String, accent: Color) -> PanelContainer:
+func _build_compact_panel(
+	title: String,
+	body: String,
+	hint: String,
+	accent: Color,
+	title_size: int,
+	body_size: int,
+	is_reflection: bool = false
+) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	panel.offset_left = 10.0
-	panel.offset_top = 6.0
-	panel.offset_right = -10.0
-	panel.offset_bottom = 72.0
+	panel.custom_minimum_size = Vector2(CORNER_WIDTH, 0)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.08, 0.92)
+	style.bg_color = Color(0.03, 0.02, 0.07, 0.94)
 	style.border_color = accent
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
-	style.shadow_size = 4
+	style.set_corner_radius_all(3)
+	style.shadow_color = Color(0, 0, 0, 0.6)
+	style.shadow_size = 3
 	panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 5)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 5)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 4)
 	panel.add_child(margin)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
+	box.add_theme_constant_override("separation", 1)
 	margin.add_child(box)
 
-	var title_label := _make_ui_label(title, accent, 15, _title_font, HORIZONTAL_ALIGNMENT_CENTER)
-	box.add_child(title_label)
+	if not title.is_empty():
+		var prefix := "◆ " if is_reflection else ""
+		var title_label := _make_ui_label(prefix + title, accent, title_size, _title_font, HORIZONTAL_ALIGNMENT_LEFT)
+		box.add_child(title_label)
 
-	var sep := ColorRect.new()
-	sep.custom_minimum_size = Vector2(0, 1)
-	sep.color = Color(accent.r, accent.g, accent.b, 0.35)
-	box.add_child(sep)
+	if not body.is_empty():
+		var body_label := _make_ui_label(body, Color(0.94, 0.92, 0.86), body_size, _ui_font, HORIZONTAL_ALIGNMENT_LEFT)
+		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(body_label)
 
-	var objective_label := _make_ui_label(objective, Color(0.96, 0.94, 0.88), 11, _ui_font, HORIZONTAL_ALIGNMENT_CENTER)
-	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(objective_label)
+	if not hint.is_empty():
+		var hint_label := _make_ui_label(hint, Color(0.72, 0.85, 1.0), body_size - 1, _ui_font, HORIZONTAL_ALIGNMENT_LEFT)
+		hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(hint_label)
 
-	var hint_label := _make_ui_label(hint, Color(0.75, 0.88, 1.0), 10, _ui_font, HORIZONTAL_ALIGNMENT_CENTER)
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(hint_label)
-
-	return panel
-
-
-func _build_world_bubble(text: String, color: Color) -> PanelContainer:
-	var panel := PanelContainer.new()
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.02, 0.06, 0.88)
-	style.border_color = Color(color.r, color.g, color.b, 0.85)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	style.content_margin_left = 5
-	style.content_margin_right = 5
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
-	panel.add_theme_stylebox_override("panel", style)
-
-	var label := _make_ui_label(text, color, 10, _ui_font, HORIZONTAL_ALIGNMENT_CENTER)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(120, 0)
-	panel.add_child(label)
-	panel.reset_size()
 	return panel
 
 
@@ -189,7 +232,7 @@ func _make_ui_label(text: String, color: Color, size: int, font: Font, align: Ho
 	label.text = text
 	label.horizontal_alignment = align
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.add_theme_font_size_override("font_size", size)

@@ -64,7 +64,7 @@ const ENEMY_MSGS = [
 
 var light_charges: int = 0
 const MAX_CHARGES: int = 3
-const PULSE_RADIUS: float = 50.0
+const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
 
 var hud_layer: CanvasLayer = null
@@ -72,6 +72,7 @@ var lbl_score: Label = null
 var lbl_health: Label = null
 var lbl_echo: Label = null
 var lbl_light: Label = null
+var minimap: ZoneMinimap = null
 
 
 func _ready() -> void:
@@ -189,11 +190,13 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(120)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"Eco %d/%d recogido  +120 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
-			GameManager.player.global_position + Vector2(0, -22), Color(0.6, 0.95, 0.5)
-		)
+	var refl := StoryReflections.get_echo_reflection(2, echoes_collected)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
+	DialogueManager.show_corner_notice(
+		"Eco %d/%d  +120 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
+		Color(0.6, 0.95, 0.5), 2.0
+	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_exit()
 
@@ -225,9 +228,9 @@ func _spawn_exit(pos: Vector2) -> void:
 		if exit_unlocked:
 			_zone_complete()
 		else:
-			DialogueManager.show_floating_text(
-				"Salida bloqueada...\nRecoge los %d ecos primero." % TOTAL_ECHOES,
-				body.global_position + Vector2(0, -25), Color(0.6, 0.8, 0.5)
+			DialogueManager.show_corner_notice(
+				"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
+				Color(0.6, 0.85, 0.5), 2.0
 			)
 	)
 
@@ -240,10 +243,7 @@ func _unlock_exit() -> void:
 		tween.tween_property(exit_poly, "modulate", Color(1.6, 2.2, 1.4), 0.45)
 		tween.tween_property(exit_poly, "modulate", Color(1.0, 1.0, 1.0), 0.45)
 	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"¡La salida se abrió!\nPortal verde → esquina inferior derecha.",
-			GameManager.player.global_position + Vector2(0, -30), Color(0.3, 1.0, 0.45)
-		)
+		DialogueManager.show_corner_notice("¡Salida abierta! → abajo derecha.", Color(0.35, 1.0, 0.45), 3.0)
 
 
 func _spawn_enemies() -> void:
@@ -260,6 +260,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"pulse": Color(0.55, 1.35, 0.45),
 		"eyes": Color(0.85, 1.0, 0.35),
 		"wisp": Color(0.10, 0.22, 0.06, 0.75),
+		"scale": 0.68,
 	})
 
 	var area = Area2D.new()
@@ -267,7 +268,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	add_child(area)
 	var c = CollisionShape2D.new()
 	var s = CircleShape2D.new()
-	s.radius = 8
+	s.radius = 6
 	c.shape = s
 	area.add_child(c)
 
@@ -291,9 +292,8 @@ func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	GameManager.take_damage()
 	if is_instance_valid(p):
 		p.take_hit(source_pos)
-		DialogueManager.show_floating_text(
-			message, p.global_position + Vector2(0, -28), Color(0.7, 1.0, 0.45)
-		)
+		var hit := StoryReflections.get_enemy_hit()
+		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 3.0)
 
 
 func _input(event: InputEvent) -> void:
@@ -325,9 +325,7 @@ func _use_light_pulse() -> void:
 			if is_instance_valid(ar):
 				ar.global_position = en.global_position
 
-	DialogueManager.show_floating_text(
-		"¡Pulso de Luz!", player_pos + Vector2(0, -25), Color(0.8, 1.0, 0.4)
-	)
+	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.8, 1.0, 0.4), 1.5)
 
 	await get_tree().create_timer(8.0).timeout
 	if not _transitioning:
@@ -370,8 +368,7 @@ func _process(delta: float) -> void:
 		if is_instance_valid(ar):
 			ar.global_position = en.global_position
 
-
-func _setup_hud() -> void:
+	_update_minimap()
 	hud_layer = CanvasLayer.new()
 	hud_layer.layer = 10
 	add_child(hud_layer)
@@ -385,7 +382,19 @@ func _setup_hud() -> void:
 	lbl_zone.text = "ZONA 2: El Pantano"
 
 	var lbl_hint = _make_label(Vector2(4, 57), Color(0.55, 0.65, 0.45))
-	lbl_hint.text = "[J] Pulso de Luz"
+	lbl_hint.text = "[J] Pulso  [ESC] Menú"
+
+	minimap = ZoneMinimap.new()
+	minimap.setup(MAP, {
+		"floor": MUD_COLOR,
+		"wall": WALL_COLOR,
+		"echo": ECHO_COLOR,
+		"exit": EXIT_OPEN_COLOR,
+	})
+	minimap.position = Vector2(252, 130)
+	hud_layer.add_child(minimap)
+	var lbl_map = _make_label(Vector2(252, 122), Color(0.55, 0.65, 0.50))
+	lbl_map.text = "MAPA"
 
 	_update_hud()
 
@@ -420,6 +429,14 @@ func _update_hud() -> void:
 		lbl_light.text = "LUZ:  " + li
 
 
+func _update_minimap() -> void:
+	if minimap == null or GameManager.player == null:
+		return
+	minimap.set_player_world_pos(GameManager.player.global_position, TS)
+	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
+	minimap.set_exit_open(exit_unlocked)
+
+
 func _zone_complete() -> void:
 	if _transitioning:
 		return
@@ -430,9 +447,8 @@ func _zone_complete() -> void:
 	GameManager.add_score(400)
 	if GameManager.player:
 		GameManager.player.set_speed_multiplier(1.0)
-		DialogueManager.show_floating_text(
-			"Aprendiste a construir puentes, no muros.\n+400 puntos — ¡Zona 2 completada!",
-			GameManager.player.global_position + Vector2(0, -30), Color(0.5, 0.9, 0.5)
-		)
-	await get_tree().create_timer(3.0).timeout
+	var refl := StoryReflections.get_zone_complete(2)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+400 pts", refl.accent, 5.0)
+	await get_tree().create_timer(5.0).timeout
 	get_tree().change_scene_to_file("res://scenes/world/Zone3_Cave.tscn")

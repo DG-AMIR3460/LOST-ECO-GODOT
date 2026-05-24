@@ -60,7 +60,7 @@ const ENEMY_MSGS = [
 
 var light_charges: int = 0
 const MAX_CHARGES: int = 3
-const PULSE_RADIUS: float = 50.0
+const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
 
 var _transitioning: bool = false
@@ -75,6 +75,7 @@ var lbl_score: Label = null
 var lbl_health: Label = null
 var lbl_echo: Label = null
 var lbl_light: Label = null
+var minimap: ZoneMinimap = null
 
 
 func _ready() -> void:
@@ -181,11 +182,13 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(150)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"Eco %d/%d recogido  +150 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
-			GameManager.player.global_position + Vector2(0, -22), Color(0.75, 0.55, 0.95)
-		)
+	var refl := StoryReflections.get_echo_reflection(3, echoes_collected)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
+	DialogueManager.show_corner_notice(
+		"Eco %d/%d  +150 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
+		Color(0.75, 0.55, 0.95), 2.0
+	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_boss()
 
@@ -198,9 +201,9 @@ func _unlock_boss() -> void:
 		tween.tween_property(_boss_poly, "modulate", Color(1.8, 0.8, 2.5), 0.45)
 		tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 0.45)
 	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"Los cristales despiertan...\nAcércate al jefe SIN arma [Q si la tienes].",
-			GameManager.player.global_position + Vector2(0, -30), Color(0.85, 0.65, 1.0)
+		DialogueManager.show_corner_notice(
+			"Jefe despierto — acércate sin arma [Q].",
+			Color(0.85, 0.65, 1.0), 3.5
 		)
 
 
@@ -238,9 +241,9 @@ func _on_boss_body_entered(body: Node) -> void:
 	if not body.is_in_group("player") or boss_defeated:
 		return
 	if not boss_unlocked:
-		DialogueManager.show_floating_text(
-			"El jefe duerme...\nRecoge los %d ecos primero." % TOTAL_ECHOES,
-			body.global_position + Vector2(0, -25), Color(0.6, 0.5, 0.9)
+		DialogueManager.show_corner_notice(
+			"Jefe dormido — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
+			Color(0.6, 0.5, 0.9), 2.0
 		)
 		return
 
@@ -249,23 +252,23 @@ func _on_boss_body_entered(body: Node) -> void:
 		1:
 			if _boss_tween:
 				_boss_tween.kill()
-			DialogueManager.show_floating_text(
-				"El monstruo imita tus movimientos.\n¡No ataques! Acércate sin arma.",
-				body.global_position + Vector2(0, -30), Color(0.8, 0.5, 1.0)
+			DialogueManager.show_corner_notice(
+				"¡No ataques! Acércate sin arma.",
+				Color(0.8, 0.5, 1.0), 3.0
 			)
 			_boss_pulse()
 		2:
-			DialogueManager.show_floating_text(
-				"Se detiene... está confundido.\nAcércate y cúralo sin arma [E].",
-				body.global_position + Vector2(0, -30), Color(0.9, 0.7, 1.0)
+			DialogueManager.show_corner_notice(
+				"Está confundido — acércate y presiona [E].",
+				Color(0.9, 0.7, 1.0), 3.0
 			)
 		3:
 			if not GameManager.player.has_weapon_equipped():
 				_heal_boss(body)
 			else:
-				DialogueManager.show_floating_text(
-					"Debes soltar el arma primero.\nPresiona Q para soltarla.",
-					body.global_position + Vector2(0, -30), Color(1.0, 0.5, 0.3)
+				DialogueManager.show_corner_notice(
+					"Suelta el arma con [Q] primero.",
+					Color(1.0, 0.5, 0.3), 2.5
 				)
 				_boss_phase = 2
 
@@ -280,9 +283,10 @@ func _heal_boss(_player: Node) -> void:
 	if boss_defeated:
 		return
 	boss_defeated = true
-	DialogueManager.show_floating_text(
-		"El cristal se calienta...\nla oscuridad se disipa.",
-		_boss_node.global_position + Vector2(0, -20), Color(1.0, 0.85, 0.2)
+	DialogueManager.show_reflection(
+		"Sanación",
+		"El cristal se calienta... la oscuridad se disipa.",
+		Color(1.0, 0.85, 0.2), 3.0
 	)
 	var tween = create_tween()
 	tween.tween_property(_boss_poly, "modulate", Color(2.0, 1.7, 0.3), 2.0)
@@ -304,6 +308,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"pulse": Color(1.45, 0.55, 2.0),
 		"eyes": Color(0.95, 0.45, 1.0),
 		"wisp": Color(0.18, 0.06, 0.28, 0.78),
+		"scale": 0.68,
 	})
 
 	var area = Area2D.new()
@@ -311,7 +316,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	add_child(area)
 	var c = CollisionShape2D.new()
 	var s = CircleShape2D.new()
-	s.radius = 8
+	s.radius = 6
 	c.shape = s
 	area.add_child(c)
 
@@ -335,9 +340,8 @@ func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	GameManager.take_damage()
 	if is_instance_valid(p):
 		p.take_hit(source_pos)
-		DialogueManager.show_floating_text(
-			message, p.global_position + Vector2(0, -28), Color(0.9, 0.5, 1.0)
-		)
+		var hit := StoryReflections.get_enemy_hit()
+		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 3.0)
 
 
 func _input(event: InputEvent) -> void:
@@ -369,9 +373,7 @@ func _use_light_pulse() -> void:
 			if is_instance_valid(ar):
 				ar.global_position = en.global_position
 
-	DialogueManager.show_floating_text(
-		"¡Pulso de Luz!", player_pos + Vector2(0, -25), Color(0.9, 0.7, 1.0)
-	)
+	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.9, 0.7, 1.0), 1.5)
 
 	await get_tree().create_timer(8.0).timeout
 	if not _transitioning:
@@ -414,8 +416,7 @@ func _process(delta: float) -> void:
 		if is_instance_valid(ar):
 			ar.global_position = en.global_position
 
-
-func _setup_hud() -> void:
+	_update_minimap()
 	hud_layer = CanvasLayer.new()
 	hud_layer.layer = 10
 	add_child(hud_layer)
@@ -429,7 +430,19 @@ func _setup_hud() -> void:
 	lbl_zone.text = "ZONA 3: Cueva del Espejo"
 
 	var lbl_hint = _make_label(Vector2(4, 57), Color(0.55, 0.45, 0.75))
-	lbl_hint.text = "[J] Pulso  [Q] Soltar arma"
+	lbl_hint.text = "[J] Pulso  [ESC] Menú"
+
+	minimap = ZoneMinimap.new()
+	minimap.setup(MAP, {
+		"floor": FLOOR_COLOR,
+		"wall": WALL_COLOR,
+		"echo": ECHO_COLOR,
+		"exit": Color(0.55, 0.20, 0.85),
+	})
+	minimap.position = Vector2(252, 130)
+	hud_layer.add_child(minimap)
+	var lbl_map = _make_label(Vector2(252, 122), Color(0.55, 0.45, 0.75))
+	lbl_map.text = "MAPA"
 
 	_update_hud()
 
@@ -464,6 +477,14 @@ func _update_hud() -> void:
 		lbl_light.text = "LUZ:  " + li
 
 
+func _update_minimap() -> void:
+	if minimap == null or GameManager.player == null:
+		return
+	minimap.set_player_world_pos(GameManager.player.global_position, TS)
+	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
+	minimap.set_exit_open(boss_unlocked)
+
+
 func _zone_complete() -> void:
 	if _transitioning:
 		return
@@ -473,10 +494,8 @@ func _zone_complete() -> void:
 	GameManager.update_empathy(0.34)
 	GameManager.add_score(700)
 	_update_hud()
-	if GameManager.player:
-		DialogueManager.show_floating_text(
-			"El monstruo era tu propio miedo reflejado.\n+700 puntos — ¡Zona 3 completada!",
-			GameManager.player.global_position + Vector2(0, -30), Color(1.0, 0.85, 0.3)
-		)
-	await get_tree().create_timer(4.0).timeout
+	var refl := StoryReflections.get_zone_complete(3)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+700 pts", refl.accent, 5.5)
+	await get_tree().create_timer(5.5).timeout
 	get_tree().change_scene_to_file("res://scenes/world/Clearing.tscn")

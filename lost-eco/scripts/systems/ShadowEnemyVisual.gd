@@ -86,4 +86,7 @@ static func create(parent: Node, world_pos: Vector2, palette: Dictionary) -> Nod
 	var spin_tween := parent.create_tween().set_loops()
 	spin_tween.tween_property(aura, "rotation", TAU, 5.5).from(0.0)
 
+	var scale_factor: float = palette.get("scale", 0.68)
+	enemy.scale = Vector2(scale_factor, scale_factor)
+
 	return enemy
