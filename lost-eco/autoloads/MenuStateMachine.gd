@@ -68,6 +68,13 @@ func transition_to_game() -> void:
 	_current_id = StateId.NONE
 	_current_state = null
 
+	GameManager.score = 0
+	GameManager.current_health = GameManager.max_health
+	GameManager.empathy_level = 0.0
+	GameManager.empathy_changed.emit(GameManager.empathy_level)
+	GameManager.health_changed.emit(GameManager.current_health)
+	GameManager.score_changed.emit(GameManager.score)
+
 	AudioManager.stop_menu_music(0.6)
 	await SceneTransition.change_scene(SettingsManager.GAME_SCENE)
 	_is_transitioning = false

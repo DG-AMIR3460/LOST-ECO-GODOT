@@ -1,5 +1,5 @@
 extends Button
-class_name MenuButton
+class_name GameMenuButton
 ## Botón de menú con hover glow, animación suave y sonidos de interfaz.
 
 @export var hover_scale: float = 1.06

@@ -107,6 +107,13 @@ func _on_sfx_changed(value: float) -> void:
 func _on_fullscreen_toggled(enabled: bool) -> void:
 	SettingsManager.set_fullscreen(enabled)
 	SettingsManager.save_settings()
+	_sync_fullscreen_ui()
+
+
+func _sync_fullscreen_ui() -> void:
+	_fullscreen_check.set_block_signals(true)
+	_fullscreen_check.button_pressed = SettingsManager.fullscreen
+	_fullscreen_check.set_block_signals(false)
 	_update_resolution_control_state()
 
 

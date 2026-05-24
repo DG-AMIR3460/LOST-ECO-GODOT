@@ -115,9 +115,11 @@ func _ready() -> void:
 		GameManager.player.has_weapon = false
 
 	await get_tree().create_timer(0.5).timeout
-	DialogueManager.show_floating_text(
-		"Recoge los 4 Ecos para abrir la salida.\nCada eco te da un Pulso de Luz [J] para repeler sombras.",
-		Vector2(20, 10), Color(0.9, 0.95, 0.6)
+	DialogueManager.show_zone_intro(
+		"ZONA 1 — Laberinto de Palabras",
+		"Las Sombras del Acoso guardan este lugar.\nRecoge 4 Ecos de Luz para abrir la salida.",
+		"Cada eco carga un Pulso de Luz [J] para repeler sombras.",
+		Color(0.95, 0.90, 0.45)
 	)
 
 # ── Generación del mapa ───────────────────────────────────────────────────────
@@ -271,43 +273,13 @@ func _spawn_enemies() -> void:
 		_create_enemy(world_pos, i)
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
-	var enemy = Node2D.new()
-	enemy.global_position = world_pos
-	add_child(enemy)
-
-	# Aura exterior
-	var glow = Polygon2D.new()
-	glow.polygon = PackedVector2Array([
-		Vector2(0,-11), Vector2(8,-4), Vector2(7,9),
-		Vector2(-7,9),  Vector2(-8,-4)
-	])
-	glow.color = ENEMY_GLOW_COLOR
-	enemy.add_child(glow)
-
-	# Cuerpo
-	var body = Polygon2D.new()
-	body.polygon = PackedVector2Array([
-		Vector2(0,-8), Vector2(5,-3), Vector2(4,6),
-		Vector2(-4,6), Vector2(-5,-3)
-	])
-	body.color = ENEMY_BODY_COLOR
-	body.name  = "Body"
-	enemy.add_child(body)
-
-	# Ojos
-	for ox in [-3, 1]:
-		var eye = Polygon2D.new()
-		eye.polygon = PackedVector2Array([
-			Vector2(ox,-4), Vector2(ox+2,-4),
-			Vector2(ox+2,-2), Vector2(ox,-2)
-		])
-		eye.color = Color(0.9, 0.7, 0.7)
-		enemy.add_child(eye)
-
-	# Animación pulsante
-	var tween = create_tween().set_loops()
-	tween.tween_property(body, "modulate", Color(1.5, 0.4, 0.4), 0.8)
-	tween.tween_property(body, "modulate", Color(1.0, 1.0, 1.0),  0.8)
+	var enemy := ShadowEnemyVisual.create(self, world_pos, {
+		"body": ENEMY_BODY_COLOR,
+		"glow": ENEMY_GLOW_COLOR,
+		"pulse": Color(1.55, 0.35, 0.40),
+		"eyes": Color(1.0, 0.20, 0.18),
+		"wisp": Color(0.30, 0.05, 0.12, 0.70),
+	})
 
 	# Área de daño
 	var area = Area2D.new()

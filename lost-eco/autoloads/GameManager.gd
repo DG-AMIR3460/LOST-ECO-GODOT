@@ -4,6 +4,10 @@ signal empathy_changed(new_value: float)
 signal score_changed(new_score: int)
 signal health_changed(new_health: int)
 
+const MENU_BUTTON_SCRIPT := preload("res://scripts/menu/menu_button.gd")
+const UI_FONT_PATH := "res://PatrickHand-Regular.ttf"
+const TITLE_FONT_PATH := "res://Fonts/AmaticSC-Bold.ttf"
+
 # 0.0 = Alex agresivo | 1.0 = Alex empático
 var empathy_level: float = 0.0
 
@@ -17,15 +21,77 @@ var max_health: int = 3
 var current_health: int = 3
 var _game_over_in_progress: bool = false
 
+# ── Pausa ────────────────────────────────────────────────────────────────────
+var _pause_layer: CanvasLayer
+var _pause_open: bool = false
+var _returning_to_menu: bool = false
+var _ui_font: Font
+var _title_font: Font
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_ui_font = load(UI_FONT_PATH) as Font
+	_title_font = load(TITLE_FONT_PATH) as Font
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("pause"):
+		return
+	if _game_over_in_progress or _returning_to_menu:
+		return
+	if _is_menu_scene():
+		return
+	if _pause_open:
+		close_pause()
+	else:
+		open_pause()
+	get_viewport().set_input_as_handled()
+
+
+func open_pause() -> void:
+	if _pause_open or _is_menu_scene():
+		return
+	_ensure_pause_layer()
+	_pause_layer.visible = true
+	_pause_open = true
+	get_tree().paused = true
+	if player:
+		player.set_can_move(false)
+
+
+func close_pause() -> void:
+	if not _pause_open:
+		return
+	_pause_open = false
+	get_tree().paused = false
+	if _pause_layer:
+		_pause_layer.visible = false
+	if player:
+		player.set_can_move(true)
+
+
+func return_to_main_menu() -> void:
+	if _returning_to_menu:
+		return
+	_returning_to_menu = true
+	close_pause()
+	player = null
+	await SceneTransition.change_scene(SettingsManager.MENU_SCENE)
+	_returning_to_menu = false
+
+
 # ── Empatía ──────────────────────────────────────────────────────────────────
 func update_empathy(delta: float) -> void:
 	empathy_level = clamp(empathy_level + delta, 0.0, 1.0)
 	empathy_changed.emit(empathy_level)
 
+
 # ── Puntuación ───────────────────────────────────────────────────────────────
 func add_score(points: int) -> void:
 	score += points
 	score_changed.emit(score)
+
 
 # ── Vida ─────────────────────────────────────────────────────────────────────
 func take_damage() -> void:
@@ -37,19 +103,115 @@ func take_damage() -> void:
 		_game_over_in_progress = true
 		_game_over()
 
+
 func heal(amount: int = 1) -> void:
 	current_health = min(max_health, current_health + amount)
 	health_changed.emit(current_health)
 
+
 func _game_over() -> void:
+	close_pause()
 	if player:
 		player.set_can_move(false)
-	# Espera un momento y reinicia la escena actual
 	await get_tree().create_timer(1.5).timeout
 	current_health = max_health
 	_game_over_in_progress = false
+	get_tree().paused = false
 	get_tree().reload_current_scene()
+
 
 # ── Interfaz ─────────────────────────────────────────────────────────────────
 func show_interact_prompt(visible: bool) -> void:
 	get_tree().call_group("hud", "set_interact_prompt_visible", visible)
+
+
+func _is_menu_scene() -> bool:
+	var current := get_tree().current_scene
+	if current == null:
+		return true
+	var path: String = current.scene_file_path
+	return path == SettingsManager.MENU_SCENE or path == SettingsManager.OPTIONS_SCENE
+
+
+func _ensure_pause_layer() -> void:
+	if _pause_layer and is_instance_valid(_pause_layer):
+		return
+
+	_pause_layer = CanvasLayer.new()
+	_pause_layer.layer = 120
+	_pause_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_pause_layer)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.02, 0.02, 0.05, 0.72)
+	_pause_layer.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_layer.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(180, 96)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.04, 0.10, 0.95)
+	style.border_color = Color(0.95, 0.78, 0.28, 0.9)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.shadow_color = Color(0, 0, 0, 0.45)
+	style.shadow_size = 5
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "PAUSA"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.98, 0.88, 0.45))
+	title.add_theme_font_size_override("font_size", 18)
+	if _title_font:
+		title.add_theme_font_override("font", _title_font)
+	box.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "[ESC] Continuar"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	hint.add_theme_font_size_override("font_size", 9)
+	if _ui_font:
+		hint.add_theme_font_override("font", _ui_font)
+	box.add_child(hint)
+
+	var resume_btn := _make_pause_button("Continuar")
+	resume_btn.pressed.connect(close_pause)
+	box.add_child(resume_btn)
+
+	var menu_btn := _make_pause_button("Menú principal")
+	menu_btn.pressed.connect(func(): return_to_main_menu())
+	box.add_child(menu_btn)
+
+	_pause_layer.visible = false
+
+
+func _make_pause_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(0, 22)
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 12)
+	if _ui_font:
+		button.add_theme_font_override("font", _ui_font)
+	button.set_script(MENU_BUTTON_SCRIPT)
+	if button.has_method("_ready"):
+		button._ready()
+	return button

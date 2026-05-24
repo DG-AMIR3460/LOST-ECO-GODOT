@@ -39,8 +39,13 @@ func _ready() -> void:
 	_load_settings()
 	apply_audio_volumes()
 	apply_colorblind_filter()
-	# La ventana principal aún no está lista en el primer frame del autoload.
 	call_deferred("apply_display_settings")
+
+
+func _configure_content_scale(window: Window) -> void:
+	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	window.content_scale_size = BASE_VIEWPORT
+	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 
 
 func _setup_audio_buses() -> void:
@@ -139,27 +144,26 @@ func _get_main_window() -> Window:
 
 func _apply_display_settings_now() -> void:
 	var window := _get_main_window()
-	var target_size := get_current_resolution()
+	_configure_content_scale(window)
 
-	# Configura el escalado interno (320x180) y deja que la ventana controle el tamaño físico.
-	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	window.content_scale_size = BASE_VIEWPORT
 	window.unresizable = false
-	window.min_size = Vector2i(320, 180)
+	window.min_size = Vector2i(640, 360)
 	window.max_size = Vector2i(7680, 4320)
 
 	if fullscreen:
 		window.mode = Window.MODE_FULLSCREEN
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 		return
 
-	# Modo ventana: aplicar tamaño real de inmediato por ambas vías (Window + DisplayServer).
+	var target_size := get_current_resolution()
+
 	window.mode = Window.MODE_WINDOWED
 	window.borderless = false
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 
 	ProjectSettings.set_setting("display/window/size/window_width_override", target_size.x)
 	ProjectSettings.set_setting("display/window/size/window_height_override", target_size.y)
 
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_size(target_size)
 	window.size = target_size
 	_center_window_on_screen(window, target_size)
