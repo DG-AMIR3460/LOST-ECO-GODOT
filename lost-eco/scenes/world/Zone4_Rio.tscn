@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bav2sjr3pxukt"]
+
+[ext_resource type="Script" uid="uid://c4ri0z0ne4gdscr" path="res://scripts/systems/Zone4_Rio.gd" id="1_rio4"]
+[ext_resource type="PackedScene" uid="uid://djs36sk77x1a0" path="res://scenes/player/alex.tscn" id="2_alex4"]
+[ext_resource type="Script" uid="uid://cm1huiracp77l" path="res://scripts/systems/FollowCamera.gd" id="3_cam44"]
+
+[node name="Zone4_Rio" type="Node2D"]
+script = ExtResource("1_rio4")
+
+[node name="Alex" parent="." instance=ExtResource("2_alex4")]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("3_cam44")

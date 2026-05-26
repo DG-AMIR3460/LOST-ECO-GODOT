@@ -7,6 +7,7 @@ var quest_data: Dictionary = {
 	"zone1": {"stage": 0, "max_stage": 3, "completed": false},
 	"zone2": {"stage": 0, "max_stage": 3, "completed": false},
 	"zone3": {"stage": 0, "max_stage": 1, "completed": false},
+	"zone4": {"stage": 0, "max_stage": 3, "completed": false},
 	"memories_collected": 0,
 	"total_memories": 8,
 }
@@ -32,4 +33,5 @@ func collect_memory() -> void:
 func all_zones_complete() -> bool:
 	return (quest_data["zone1"]["completed"] and
 			quest_data["zone2"]["completed"] and
-			quest_data["zone3"]["completed"])
+			quest_data["zone3"]["completed"] and
+			quest_data["zone4"]["completed"])

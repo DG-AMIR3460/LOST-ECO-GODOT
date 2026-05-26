@@ -81,6 +81,26 @@ const _REFLECTIONS: Dictionary = {
 		"body": "El monstruo era tu propio miedo reflejado.\nElegir la empatía sobre el ataque es el camino de regreso.",
 		"accent": Color(1.0, 0.85, 0.35),
 	},
+	"zone4_echo_1": {
+		"title": "Corriente",
+		"body": "El agua sigue fluyendo aunque no mires atrás.\nPero lo que dejaste atrás sigue ahí.",
+		"accent": Color(0.50, 0.92, 0.85),
+	},
+	"zone4_echo_2": {
+		"title": "Orilla",
+		"body": "A veces hay que cruzar el río\npara encontrar a quien lastimamos.",
+		"accent": Color(0.50, 0.92, 0.85),
+	},
+	"zone4_echo_3": {
+		"title": "Última corriente",
+		"body": "Perdonarse no es olvidar.\nEs dejar de huir de lo que hicimos.",
+		"accent": Color(0.50, 0.92, 0.85),
+	},
+	"zone4_complete": {
+		"title": "Reflexión — Zona 4",
+		"body": "Cruzaste el río con paciencia.\nEl claro te espera: es hora de hablar con Mateo.",
+		"accent": Color(0.45, 0.90, 0.75),
+	},
 	"enemy_hit": {
 		"title": "Sombras del acoso",
 		"body": "Esta sombra es el peso de las palabras.\nEl bullying deja marcas que no siempre se ven.",

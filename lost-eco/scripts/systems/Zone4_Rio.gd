@@ -1,17 +1,17 @@
 extends Node2D
 
 # ── Mapa (32 columnas × 20 filas) ────────────────────────────────────────────
-# S = Inicio | E = Eco | B = Jefe espejo | # = Pared | . = Suelo de cueva
+# S = Inicio | E = Eco | X = Salida | # = Orilla tropical | . = Agua del río
 const MAP = [
 	"################################",
 	"#S.............................#",
 	"#....E.........................#",
 	"#..............................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
+	"#..........####................#",
+	"#..........#..#................#",
+	"#..........#..#................#",
 	"#........................E.....#",
-	"#..............................#",
+	"#..........####................#",
 	"#..............................#",
 	"##########..#########..#########",
 	"#..............................#",
@@ -20,57 +20,55 @@ const MAP = [
 	"#..............................#",
 	"##########..#########..#########",
 	"#..............................#",
-	"#................B.............#",
 	"#..............................#",
+	"#.............................X#",
 	"################################",
 ]
 
 const TS = 16
-const FLOOR_COLOR       = Color(0.48, 0.48, 0.50)
-const FLOOR_DARK_COLOR  = Color(0.30, 0.30, 0.33)
-const WALL_COLOR        = Color(0.14, 0.14, 0.16)
-const ECHO_COLOR        = Color(0.92, 0.82, 0.35)
-const CRYSTAL_COLOR     = Color(0.58, 0.56, 0.52)
-const ENEMY_BODY_COLOR  = Color(0.82, 0.68, 0.12)
-const ENEMY_GLOW_COLOR  = Color(0.95, 0.85, 0.22, 0.38)
+const WATER_COLOR         = Color(0.18, 0.42, 0.72)
+const WATER_DARK_COLOR    = Color(0.12, 0.32, 0.58)
+const WALL_COLOR          = Color(0.12, 0.48, 0.22)
+const WALL_DARK_COLOR     = Color(0.08, 0.32, 0.14)
+const ECHO_COLOR          = Color(0.55, 0.92, 0.85)
+const EXIT_LOCKED_COLOR   = Color(0.15, 0.38, 0.55)
+const EXIT_OPEN_COLOR     = Color(0.35, 0.85, 0.95)
+const ENEMY_BODY_COLOR    = Color(0.12, 0.28, 0.62)
+const ENEMY_GLOW_COLOR    = Color(0.25, 0.55, 0.92, 0.38)
 
 var floors: Array = []
-var floor_shades: Array = []
+var water_shades: Array = []
 var walls:  Array = []
 
 var echoes_collected: int = 0
 const TOTAL_ECHOES = 3
-var boss_unlocked: bool = false
-var boss_defeated: bool = false
+
+var exit_poly: Polygon2D = null
+var exit_area: Area2D = null
+var exit_unlocked: bool = false
+var _transitioning: bool = false
 
 var enemies: Array = []
 const ENEMY_TILES = [
-	Vector2i(14,  2),
-	Vector2i( 8,  7),
-	Vector2i(26,  8),
-	Vector2i(10, 12),
-	Vector2i(20, 16),
+	Vector2i(10,  2),
+	Vector2i(26,  4),
+	Vector2i( 6,  8),
+	Vector2i(20, 12),
+	Vector2i(16, 17),
 ]
 
 const ENEMY_MSGS = [
-	"Tu reflejo te persigue...\n¿reconoces lo que hiciste?  -1 vida",
-	"Los cristales guardan\nrecuerdos que evitaste.  -1 vida",
-	"La oscuridad imita\ntus peores decisiones.  -1 vida",
-	"Cada sombra es una palabra\nque no deberías haber dicho.  -1 vida",
-	"El miedo reflejado\nvuelve hacia ti.  -1 vida",
+	"La corriente te arrastra...\nhacia lo que evitaste.  -1 vida",
+	"El agua fría recuerda\nel silencio que guardaste.  -1 vida",
+	"Cada ola repite una palabra\nque no pediste perdón.  -1 vida",
+	"El río no juzga,\npero tampoco perdona.  -1 vida",
+	"Nadar contra la culpa\nagota más que el cuerpo.  -1 vida",
 ]
 
 var light_charges: int = 0
 const MAX_CHARGES: int = 3
 const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
-
-var _transitioning: bool = false
-var _boss_phase: int = 0
-var _boss_node: Node2D = null
-var _boss_poly: Polygon2D = null
-var _boss_area: Area2D = null
-var _boss_tween: Tween = null
 
 var hud_layer: CanvasLayer = null
 var lbl_score: Label = null
@@ -81,7 +79,7 @@ var minimap: ZoneMinimap = null
 
 
 func _ready() -> void:
-	RenderingServer.set_default_clear_color(Color(0.22, 0.22, 0.24))
+	RenderingServer.set_default_clear_color(Color(0.08, 0.22, 0.38))
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
@@ -93,10 +91,10 @@ func _ready() -> void:
 
 	await get_tree().create_timer(0.5).timeout
 	DialogueManager.show_zone_intro(
-		"ZONA 3 — Cueva del Espejo",
-		"Los cristales reflejan tus miedos.\nRecoge 3 Ecos y enfrenta al jefe del espejo.",
-		"No pelees: acércate sin arma [Q] para sanarlo.",
-		Color(0.92, 0.82, 0.40)
+		"ZONA 4 — El Río",
+		"El agua te frena a cada paso.\nRecoge 3 Ecos de Luz para abrir la salida.",
+		"Usa [J] para repeler sombras. Sigue la corriente con paciencia.",
+		Color(0.45, 0.90, 0.75)
 	)
 
 
@@ -111,33 +109,32 @@ func _generate_map() -> void:
 					_add_wall(pos)
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.16:
-						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
+					_add_water_zone(pos)
 					if GameManager.player:
 						GameManager.player.global_position = pos + Vector2(8, 8)
+						GameManager.player.set_speed_multiplier(0.70)
 				"E":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.16:
-						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
+					_add_water_zone(pos)
 					_spawn_echo(pos)
-				"B":
+				"X":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.16:
-						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
-					_spawn_boss(pos)
+					_add_water_zone(pos)
+					_spawn_exit(pos)
 				_:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.16:
-						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.10:
-						_spawn_crystal(pos)
+					if randf() < 0.14:
+						water_shades.append(Rect2(pos, Vector2(TS, TS)))
+					_add_water_zone(pos)
 	queue_redraw()
 
 
 func _draw() -> void:
-	for r in floors: draw_rect(r, FLOOR_COLOR)
-	for r in floor_shades: draw_rect(r, FLOOR_DARK_COLOR)
-	for r in walls:  draw_rect(r, WALL_COLOR)
+	for r in floors: draw_rect(r, WATER_COLOR)
+	for r in water_shades: draw_rect(r, WATER_DARK_COLOR)
+	for r in walls:
+		draw_rect(r, WALL_COLOR)
+		draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(TS - 4, TS - 4)), WALL_DARK_COLOR)
 
 
 func _add_wall(pos: Vector2) -> void:
@@ -151,15 +148,23 @@ func _add_wall(pos: Vector2) -> void:
 	b.add_child(c)
 
 
-func _spawn_crystal(pos: Vector2) -> void:
-	var poly = Polygon2D.new()
-	poly.position = pos + Vector2(TS / 2.0, TS / 2.0)
-	poly.polygon = PackedVector2Array([
-		Vector2(0, -5), Vector2(3, -1), Vector2(2, 4),
-		Vector2(-2, 4), Vector2(-3, -1)
-	])
-	poly.color = CRYSTAL_COLOR
-	add_child(poly)
+func _add_water_zone(pos: Vector2) -> void:
+	var area = Area2D.new()
+	area.global_position = pos
+	add_child(area)
+	var c = CollisionShape2D.new()
+	var s = RectangleShape2D.new()
+	s.size = Vector2(TS, TS)
+	c.shape = s
+	area.add_child(c)
+	area.body_entered.connect(func(body):
+		if body.is_in_group("player"):
+			body.set_speed_multiplier(0.48)
+	)
+	area.body_exited.connect(func(body):
+		if body.is_in_group("player"):
+			body.set_speed_multiplier(0.70)
+	)
 
 
 func _spawn_echo(pos: Vector2) -> void:
@@ -179,7 +184,7 @@ func _spawn_echo(pos: Vector2) -> void:
 	poly.color = ECHO_COLOR
 	a.add_child(poly)
 	var tween = create_tween().set_loops()
-	tween.tween_property(poly, "modulate", Color(1.8, 1.2, 2.5), 0.55)
+	tween.tween_property(poly, "modulate", Color(0.8, 1.8, 1.6), 0.55)
 	tween.tween_property(poly, "modulate", Color(1.0, 1.0, 1.0), 0.55)
 	a.body_entered.connect(func(body):
 		if body.is_in_group("player"):
@@ -192,119 +197,57 @@ func _collect_echo(node: Node) -> void:
 		minimap.mark_echo_collected_at(node.global_position, TS)
 	echoes_collected += 1
 	node.queue_free()
-	GameManager.add_score(150)
+	GameManager.add_score(130)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	var refl := StoryReflections.get_echo_reflection(3, echoes_collected)
+	var refl := StoryReflections.get_echo_reflection(4, echoes_collected)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
 	DialogueManager.show_corner_notice(
-		"Eco %d/%d  +150 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
-		Color(0.75, 0.55, 0.95), 2.0
+		"Eco %d/%d  +130 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
+		Color(0.50, 0.92, 0.85), 2.0
 	)
 	if echoes_collected >= TOTAL_ECHOES:
-		_unlock_boss()
+		_unlock_exit()
 
 
-func _unlock_boss() -> void:
-	boss_unlocked = true
-	if _boss_poly:
-		_boss_poly.color = Color(0.55, 0.20, 0.85)
-		var tween = create_tween().set_loops()
-		tween.tween_property(_boss_poly, "modulate", Color(1.8, 0.8, 2.5), 0.45)
-		tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 0.45)
-	if GameManager.player:
-		DialogueManager.show_corner_notice(
-			"Jefe despierto — acércate sin arma [Q].",
-			Color(0.85, 0.65, 1.0), 3.5
-		)
-
-
-func _spawn_boss(pos: Vector2) -> void:
+func _spawn_exit(pos: Vector2) -> void:
 	var center = pos + Vector2(TS / 2.0, TS / 2.0)
-	_boss_node = Node2D.new()
-	_boss_node.global_position = center
-	_boss_node.add_to_group("mirror_boss")
-	add_child(_boss_node)
+	var exit_node = Node2D.new()
+	exit_node.global_position = center
+	add_child(exit_node)
 
-	_boss_poly = Polygon2D.new()
-	_boss_poly.polygon = PackedVector2Array([
-		Vector2(0, -10), Vector2(8, -4), Vector2(6, 8),
-		Vector2(-6, 8), Vector2(-8, -4)
+	exit_poly = Polygon2D.new()
+	exit_poly.polygon = PackedVector2Array([
+		Vector2(-7, -7), Vector2(7, -7), Vector2(7, 7), Vector2(-7, 7)
 	])
-	_boss_poly.color = Color(0.25, 0.10, 0.40)
-	_boss_node.add_child(_boss_poly)
+	exit_poly.color = EXIT_LOCKED_COLOR
+	exit_node.add_child(exit_poly)
 
-	_boss_tween = create_tween().set_loops()
-	_boss_tween.tween_property(_boss_poly, "modulate", Color(1.2, 0.5, 1.8), 1.0)
-	_boss_tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 1.0)
-
-	_boss_area = Area2D.new()
-	_boss_area.global_position = center
-	add_child(_boss_area)
+	exit_area = Area2D.new()
+	exit_area.global_position = center
+	exit_area.monitoring = true
+	exit_area.collision_mask = 1
+	add_child(exit_area)
 	var c = CollisionShape2D.new()
 	var s = CircleShape2D.new()
-	s.radius = 20
+	s.radius = 16
 	c.shape = s
-	_boss_area.add_child(c)
-	_boss_area.body_entered.connect(_on_boss_body_entered)
-
-
-func _on_boss_body_entered(body: Node) -> void:
-	if not body.is_in_group("player") or boss_defeated:
-		return
-	if not boss_unlocked:
-		DialogueManager.show_corner_notice(
-			"Jefe dormido — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
-			Color(0.6, 0.5, 0.9), 2.0
-		)
-		return
-
-	_boss_phase += 1
-	match _boss_phase:
-		1:
-			if _boss_tween:
-				_boss_tween.kill()
-			DialogueManager.show_corner_notice(
-				"¡No ataques! Acércate sin arma.",
-				Color(0.8, 0.5, 1.0), 3.0
-			)
-			_boss_pulse()
-		2:
-			DialogueManager.show_corner_notice(
-				"Está confundido — acércate y presiona [E].",
-				Color(0.9, 0.7, 1.0), 3.0
-			)
-		3:
-			if not GameManager.player.has_weapon_equipped():
-				_heal_boss(body)
-			else:
-				DialogueManager.show_corner_notice(
-					"Suelta el arma con [Q] primero.",
-					Color(1.0, 0.5, 0.3), 2.5
-				)
-				_boss_phase = 2
-
-
-func _boss_pulse() -> void:
-	var tween = create_tween().set_loops(8)
-	tween.tween_property(_boss_poly, "modulate", Color(1.8, 0.3, 2.0), 0.25)
-	tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 0.25)
-
-
-func _heal_boss(_player: Node) -> void:
-	if boss_defeated:
-		return
-	boss_defeated = true
-	DialogueManager.show_reflection(
-		"Sanación",
-		"El cristal se calienta... la oscuridad se disipa.",
-		Color(1.0, 0.85, 0.2), 3.0
+	exit_area.add_child(c)
+	exit_area.body_entered.connect(func(body):
+		_try_use_exit(body)
 	)
-	var tween = create_tween()
-	tween.tween_property(_boss_poly, "modulate", Color(2.0, 1.7, 0.3), 2.0)
-	tween.tween_property(_boss_node, "scale", Vector2(0.1, 0.1), 1.5)
-	tween.tween_callback(_zone_complete)
+
+
+func _unlock_exit() -> void:
+	exit_unlocked = true
+	if exit_poly:
+		exit_poly.color = EXIT_OPEN_COLOR
+		var tween = create_tween().set_loops()
+		tween.tween_property(exit_poly, "modulate", Color(1.2, 2.0, 2.2), 0.45)
+		tween.tween_property(exit_poly, "modulate", Color(1.0, 1.0, 1.0), 0.45)
+	if GameManager.player:
+		DialogueManager.show_corner_notice("¡Salida abierta! → abajo derecha.", Color(0.40, 0.95, 0.90), 3.0)
 
 
 func _spawn_enemies() -> void:
@@ -318,9 +261,9 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
 		"body": ENEMY_BODY_COLOR,
 		"glow": ENEMY_GLOW_COLOR,
-		"pulse": Color(1.55, 1.35, 0.35),
-		"eyes": Color(1.0, 0.92, 0.30),
-		"wisp": Color(0.28, 0.22, 0.06, 0.75),
+		"pulse": Color(0.45, 0.85, 1.55),
+		"eyes": Color(0.55, 0.85, 1.0),
+		"wisp": Color(0.08, 0.18, 0.38, 0.75),
 		"scale": 0.68,
 	})
 
@@ -342,7 +285,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	enemies.append({
 		"node": enemy,
 		"area": area,
-		"speed": 18.0 + idx * 2.0,
+		"speed": 16.0 + idx * 1.5,
 	})
 
 
@@ -369,7 +312,7 @@ func _use_light_pulse() -> void:
 	var player_pos = GameManager.player.global_position
 
 	var tween_flash = create_tween()
-	tween_flash.tween_property(GameManager.player, "modulate", Color(2.5, 1.5, 3.0), 0.08)
+	tween_flash.tween_property(GameManager.player, "modulate", Color(1.2, 2.2, 2.5), 0.08)
 	tween_flash.tween_property(GameManager.player, "modulate", Color(1.0, 1.0, 1.0), 0.25)
 
 	for ed in enemies:
@@ -380,13 +323,13 @@ func _use_light_pulse() -> void:
 			var push_dir = (en.global_position - player_pos).normalized()
 			if push_dir == Vector2.ZERO:
 				push_dir = Vector2.RIGHT
-			en.global_position += push_dir * 55.0
+			en.global_position += push_dir * 52.0
 			en.set_meta("stunned", STUN_TIME)
 			var ar: Area2D = ed["area"]
 			if is_instance_valid(ar):
 				ar.global_position = en.global_position
 
-	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.9, 0.7, 1.0), 1.5)
+	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.55, 0.90, 1.0), 1.5)
 
 	await get_tree().create_timer(8.0).timeout
 	if not _transitioning:
@@ -419,7 +362,7 @@ func _process(delta: float) -> void:
 				en.set_meta("stunned", t)
 				var b = en.get_node_or_null("Body")
 				if b:
-					b.modulate = Color(1.4, 1.2, 0.45)
+					b.modulate = Color(0.45, 0.75, 1.2)
 				continue
 
 		var dir = player_pos - en.global_position
@@ -430,6 +373,26 @@ func _process(delta: float) -> void:
 			ar.global_position = en.global_position
 
 	_update_minimap()
+	_check_exit_overlap()
+
+
+func _try_use_exit(body: Node) -> void:
+	if not body.is_in_group("player"):
+		return
+	if exit_unlocked:
+		_zone_complete()
+	else:
+		DialogueManager.show_corner_notice(
+			"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
+			Color(0.50, 0.85, 0.90), 2.0
+		)
+
+
+func _check_exit_overlap() -> void:
+	if not exit_unlocked or _transitioning or exit_area == null or GameManager.player == null:
+		return
+	if exit_area.overlaps_body(GameManager.player):
+		_zone_complete()
 
 
 func _setup_hud() -> void:
@@ -439,23 +402,23 @@ func _setup_hud() -> void:
 
 	lbl_score = _make_label(Vector2(4, 2), Color(1.0, 0.9, 0.3))
 	lbl_health = _make_label(Vector2(4, 13), Color(1.0, 0.35, 0.35))
-	lbl_echo = _make_label(Vector2(4, 24), Color(0.92, 0.82, 0.40))
-	lbl_light = _make_label(Vector2(4, 35), Color(0.85, 0.75, 0.35))
+	lbl_echo = _make_label(Vector2(4, 24), Color(0.55, 0.92, 0.85))
+	lbl_light = _make_label(Vector2(4, 35), Color(0.45, 0.80, 0.95))
 
-	var lbl_zone = _make_label(Vector2(4, 46), Color(0.75, 0.72, 0.65))
-	lbl_zone.text = "ZONA 3: Cueva del Espejo"
+	var lbl_zone = _make_label(Vector2(4, 46), Color(0.40, 0.85, 0.55))
+	lbl_zone.text = "ZONA 4: El Río"
 
-	var lbl_hint = _make_label(Vector2(4, 57), Color(0.60, 0.58, 0.52))
+	var lbl_hint = _make_label(Vector2(4, 57), Color(0.45, 0.70, 0.80))
 	lbl_hint.text = "[J] Pulso  [ESC] Menú"
 
 	minimap = ZoneMinimap.new()
 	minimap.setup(MAP, {
-		"floor": FLOOR_COLOR,
+		"floor": WATER_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
-		"exit": Color(0.85, 0.72, 0.25),
-		"enemy": Color(0.95, 0.85, 0.20),
-		"border": Color(0.70, 0.68, 0.62, 0.9),
+		"exit": EXIT_OPEN_COLOR,
+		"enemy": Color(0.35, 0.70, 0.95),
+		"border": Color(0.35, 0.80, 0.55, 0.9),
 	})
 	minimap.position = Vector2(224, 98)
 	hud_layer.add_child(minimap)
@@ -498,7 +461,7 @@ func _update_minimap() -> void:
 		return
 	minimap.set_player_world_pos(GameManager.player.global_position, TS)
 	minimap.set_echoes_remaining(TOTAL_ECHOES - echoes_collected)
-	minimap.set_exit_open(boss_unlocked)
+	minimap.set_exit_open(exit_unlocked)
 	minimap.set_enemy_tiles(_get_enemy_minimap_tiles())
 
 
@@ -522,13 +485,13 @@ func _zone_complete() -> void:
 	GameManager.close_pause()
 	if GameManager.player:
 		GameManager.player.set_can_move(false)
-	QuestManager.advance_quest("zone3")
-	GameManager.update_empathy(0.34)
-	GameManager.add_score(700)
-	_update_hud()
-	DialogueManager.show_corner_notice("¡Zona completada! Pasando al Río...", Color(0.92, 0.85, 0.45), 3.0)
-	var refl := StoryReflections.get_zone_complete(3)
+		GameManager.player.set_speed_multiplier(1.0)
+	QuestManager.advance_quest("zone4")
+	GameManager.update_empathy(0.33)
+	GameManager.add_score(500)
+	DialogueManager.show_corner_notice("¡Zona completada! Llegando al claro...", Color(0.55, 0.95, 0.85), 3.0)
+	var refl := StoryReflections.get_zone_complete(4)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+700 pts", refl.accent, 3.5)
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 3.5)
 	await get_tree().create_timer(3.5).timeout
-	await SceneTransition.change_scene("res://scenes/world/Zone4_Rio.tscn")
+	await SceneTransition.change_scene("res://scenes/world/Clearing.tscn")
