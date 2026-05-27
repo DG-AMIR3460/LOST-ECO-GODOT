@@ -4,7 +4,7 @@ class_name GothicAtmosphere
 
 const VIGNETTE_SHADER := preload("res://shaders/vignette_screen.gdshader")
 const FOG_SHADER := preload("res://assets/shaders/fog_shader.gdshader")
-const PARALLAX_SCRIPT := preload("res://scripts/visual/GothicParallaxLayers.gd")
+const PARALLAX_SCRIPT := preload("res://scripts/mapa/GothicParallaxLayers.gd")
 
 var _zone_root: Node2D = null
 var _player: Node2D = null

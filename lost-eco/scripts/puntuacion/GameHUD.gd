@@ -63,7 +63,7 @@ func _build_ui() -> void:
 	for _i in 6:
 		var heart := Control.new()
 		heart.custom_minimum_size = Vector2(12, 12)
-		heart.set_script(preload("res://scripts/core/ui/HeartIcon.gd"))
+		heart.set_script(preload("res://scripts/puntuacion/HeartIcon.gd"))
 		heart_row.add_child(heart)
 		_hearts.append(heart)
 	_light_bar = ProgressBar.new()

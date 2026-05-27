@@ -31,7 +31,7 @@ const MAP: Array = [
 const MUD := Color(0.1, 0.13, 0.07)
 const WALL := Color(0.05, 0.06, 0.03)
 const MUD_HI := Color(0.14, 0.17, 0.09)
-const PARALLAX_SCRIPT := preload("res://scripts/visual/GothicParallaxLayers.gd")
+const PARALLAX_SCRIPT := preload("res://scripts/mapa/GothicParallaxLayers.gd")
 const PLAYER_SCENE := preload("res://scenes/core/player_controller.tscn")
 const NEXT_ZONE_SCENE := "res://scenes/world/Zone2_Swamp.tscn"
 

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://djs36sk77x1a0"]
 
-[ext_resource type="Script" uid="uid://hx2cpkm43hha" path="res://scripts/player/Alex.gd" id="1_gguml"]
+[ext_resource type="Script" uid="uid://hx2cpkm43hha" path="res://scripts/personaje/Alex.gd" id="1_gguml"]
 [ext_resource type="Texture2D" uid="uid://clhlecypjdun1" path="res://icon.svg" id="2_dol7q"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_pvpg0"]

@@ -58,7 +58,7 @@ func _build_shell(zone_title: String, max_health: int, max_light: int) -> void:
 	for _i in max_health:
 		var h := Control.new()
 		h.custom_minimum_size = Vector2(11, 11)
-		h.set_script(preload("res://scripts/core/ui/HeartIcon.gd"))
+		h.set_script(preload("res://scripts/puntuacion/HeartIcon.gd"))
 		lives_row.add_child(h)
 		_hearts.append(h)
 
@@ -77,7 +77,7 @@ func _build_shell(zone_title: String, max_health: int, max_light: int) -> void:
 	for _i in max_light:
 		var pip := Control.new()
 		pip.custom_minimum_size = Vector2(8, 8)
-		pip.set_script(preload("res://scripts/visual/LightPipIcon.gd"))
+		pip.set_script(preload("res://scripts/puntuacion/LightPipIcon.gd"))
 		light_row.add_child(pip)
 		_light_pips.append(pip)
 

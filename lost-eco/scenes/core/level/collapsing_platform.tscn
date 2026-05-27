@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://lost_eco_collapse"]
 
-[ext_resource type="Script" path="res://scripts/core/level/CollapsingPlatform.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/mapa/CollapsingPlatform.gd" id="1_script"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_plat"]
 size = Vector2(40, 8)

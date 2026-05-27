@@ -1,13 +1,13 @@
 [gd_scene load_steps=9 format=3 uid="uid://lost_eco_pantano"]
 
-[ext_resource type="Script" path="res://scripts/core/world/PantanoWorldController.gd" id="1_world"]
-[ext_resource type="Script" path="res://scripts/core/session/GameSession.gd" id="2_session"]
-[ext_resource type="Script" path="res://scripts/core/enemies/EnemyFactory.gd" id="3_factory"]
-[ext_resource type="Script" path="res://scripts/core/level/LevelProceduralObstacle.gd" id="4_level"]
-[ext_resource type="Script" path="res://scripts/core/accessibility/AccessibilityManager.gd" id="5_access"]
-[ext_resource type="Script" path="res://scripts/core/cinematics/DeathCinematicDirector.gd" id="6_death"]
-[ext_resource type="Script" path="res://scripts/core/cinematics/ScreenShake.gd" id="7_shake"]
-[ext_resource type="Script" path="res://scripts/core/player/PlayerSkinMapper.gd" id="8_skin"]
+[ext_resource type="Script" path="res://scripts/mapa/PantanoWorldController.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/puntuacion/GameSession.gd" id="2_session"]
+[ext_resource type="Script" path="res://scripts/enemigos/EnemyFactory.gd" id="3_factory"]
+[ext_resource type="Script" path="res://scripts/mapa/LevelProceduralObstacle.gd" id="4_level"]
+[ext_resource type="Script" path="res://scripts/cinematicas/AccessibilityManager.gd" id="5_access"]
+[ext_resource type="Script" path="res://scripts/cinematicas/DeathCinematicDirector.gd" id="6_death"]
+[ext_resource type="Script" path="res://scripts/cinematicas/ScreenShake.gd" id="7_shake"]
+[ext_resource type="Script" path="res://scripts/personaje/PlayerSkinMapper.gd" id="8_skin"]
 
 [node name="PantanoWorld" type="Node2D"]
 script = ExtResource("1_world")

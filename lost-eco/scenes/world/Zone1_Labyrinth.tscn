@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://ckoed00bgn7bi"]
 
-[ext_resource type="Script" uid="uid://2sd8ing3div7" path="res://scripts/systems/Zone1_Labyrinth.gd" id="1_30f01"]
+[ext_resource type="Script" uid="uid://2sd8ing3div7" path="res://scripts/mapa/Zone1_Labyrinth.gd" id="1_30f01"]
 [ext_resource type="Shader" uid="uid://c07o4507uthr0" path="res://assets/shaders/fog_shader.gdshader" id="2_nvdxt"]
 [ext_resource type="PackedScene" uid="uid://djs36sk77x1a0" path="res://scenes/player/alex.tscn" id="3_ixpdw"]
-[ext_resource type="Script" uid="uid://cm1huiracp77l" path="res://scripts/systems/FollowCamera.gd" id="4_nvdxt"]
+[ext_resource type="Script" uid="uid://cm1huiracp77l" path="res://scripts/mapa/FollowCamera.gd" id="4_nvdxt"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1wbyk"]
 shader = ExtResource("2_nvdxt")

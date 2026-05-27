@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://lost_eco_echo"]
 
-[ext_resource type="Script" path="res://scripts/core/level/MemoryEcho.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/puntuacion/MemoryEcho.gd" id="1_script"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_echo"]
 radius = 8.0
