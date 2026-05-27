@@ -32,6 +32,8 @@ var _exit_open: bool = false
 var _pulse: float = 0.0
 var _map_origin: Vector2 = Vector2.ZERO
 var _map_size: Vector2 = Vector2.ZERO
+var _fog_enabled: bool = false
+var _discovered: Dictionary = {}
 
 
 func _ready() -> void:
@@ -73,6 +75,20 @@ func setup(map: Array, colors: Dictionary = {}) -> void:
 	queue_redraw()
 
 
+func enable_fog_of_war() -> void:
+	_fog_enabled = true
+	_discovered.clear()
+
+
+func reveal_near(tile: Vector2i, radius: int = 3) -> void:
+	if not _fog_enabled:
+		return
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var t := Vector2i(tile.x + dx, tile.y + dy)
+			_discovered[str(t)] = true
+
+
 func set_player_world_pos(world_pos: Vector2, tile_size: float) -> void:
 	if tile_size <= 0.0:
 		return
@@ -80,6 +96,8 @@ func set_player_world_pos(world_pos: Vector2, tile_size: float) -> void:
 		int(floor(world_pos.x / tile_size)),
 		int(floor(world_pos.y / tile_size))
 	)
+	if _fog_enabled:
+		reveal_near(_player_tile, 3)
 	var target := _map_origin + Vector2(
 		(_player_tile.x + 0.5) * TILE_PX,
 		(_player_tile.y + 0.5) * TILE_PX
@@ -136,12 +154,17 @@ func _draw() -> void:
 
 	for y in _rows:
 		for x in _cols:
+			var tile := Vector2i(x, y)
 			var pos := _map_origin + Vector2(x * TILE_PX, y * TILE_PX)
 			var rect := Rect2(pos, Vector2(TILE_PX, TILE_PX))
+			var known := not _fog_enabled or _discovered.has(str(tile))
+			if not known:
+				draw_rect(rect, Color(0.02, 0.02, 0.04, 0.92))
+				continue
 			if _map[y][x] == "#":
-				draw_rect(rect, _wall_color)
+				_draw_wall_tile(rect)
 			else:
-				draw_rect(rect, _floor_color.lightened(0.04))
+				_draw_floor_tile(rect)
 
 	for t in _enemy_tiles:
 		_draw_enemy_marker(_tile_center(t))
@@ -170,9 +193,13 @@ func _draw() -> void:
 		)
 
 	if _display_player != Vector2.ZERO:
-		draw_circle(_display_player, TILE_PX * 0.55, Color(1, 1, 1, 0.35))
-		draw_circle(_display_player, TILE_PX * 0.38, _player_color)
-		draw_circle(_display_player, TILE_PX * 0.16, Color(1, 1, 1, 0.85))
+		var tri := PackedVector2Array([
+			_display_player + Vector2(0, -4), _display_player + Vector2(3.5, 3),
+			_display_player + Vector2(-3.5, 3),
+		])
+		draw_colored_polygon(tri, Color(1, 1, 1, 0.25))
+		draw_colored_polygon(tri, _player_color)
+		draw_circle(_display_player, 1.2, Color(0.95, 0.95, 1.0))
 
 	var legend_y := _map_origin.y + _map_size.y + 2.0
 	_draw_legend(Vector2(PADDING, legend_y))
@@ -183,16 +210,31 @@ func _tile_center(tile: Vector2i) -> Vector2:
 
 
 func _draw_echo_marker(center: Vector2, color: Color) -> void:
-	draw_circle(center, TILE_PX * 0.42, Color(color.r, color.g, color.b, color.a * 0.35))
-	draw_circle(center, TILE_PX * 0.28, color)
+	var star := PackedVector2Array()
+	for i in 5:
+		var a := TAU * float(i) / 5.0 - PI * 0.5
+		var r := TILE_PX * 0.38 if i % 2 == 0 else TILE_PX * 0.16
+		star.append(center + Vector2(cos(a), sin(a)) * r)
+	draw_colored_polygon(star, Color(color.r, color.g, color.b, color.a * 0.35))
+	draw_colored_polygon(star, color)
+
+
+func _draw_floor_tile(rect: Rect2) -> void:
+	draw_rect(rect, _floor_color.darkened(0.08))
+	draw_rect(rect.grow(-0.6), _floor_color.lightened(0.06))
+
+
+func _draw_wall_tile(rect: Rect2) -> void:
+	draw_rect(rect, _wall_color)
+	draw_line(rect.position, rect.position + Vector2(rect.size.x, 0), _wall_color.lightened(0.12), 1.0)
 
 
 func _draw_enemy_marker(center: Vector2) -> void:
-	draw_circle(center, TILE_PX * 0.30, Color(_enemy_color.r, _enemy_color.g, _enemy_color.b, 0.45))
-	draw_rect(
-		Rect2(center - Vector2(TILE_PX * 0.18, TILE_PX * 0.18), Vector2(TILE_PX * 0.36, TILE_PX * 0.36)),
-		_enemy_color
-	)
+	var pts := PackedVector2Array([
+		center + Vector2(0, -3.2), center + Vector2(2.8, 2.2), center + Vector2(-2.8, 2.2),
+	])
+	draw_colored_polygon(pts, Color(_enemy_color.r, _enemy_color.g, _enemy_color.b, 0.85))
+	draw_circle(center + Vector2(0, -0.5), 1.0, Color(1.0, 0.2, 0.25))
 
 
 func _draw_legend(origin: Vector2) -> void:
@@ -209,7 +251,7 @@ func _draw_legend(origin: Vector2) -> void:
 		x += 20.0
 
 
-func _draw_label(pos: Vector2, text: String, color: Color, size: int) -> void:
+func _draw_label(pos: Vector2, text: String, color: Color, font_size: int) -> void:
 	var font := ThemeDB.fallback_font
 	if font:
-		draw_string(font, pos + Vector2(0, size), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+		draw_string(font, pos + Vector2(0, font_size), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)

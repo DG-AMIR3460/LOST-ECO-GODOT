@@ -7,9 +7,18 @@ signal settings_changed
 enum ColorblindMode { NORMAL, PROTANOPIA, DEUTERANOPIA, TRITANOPIA }
 
 const SETTINGS_PATH := "user://settings.cfg"
-const GAME_SCENE := "res://scenes/world/Zone1_Labyrinth.tscn"
 const MENU_SCENE := "res://scenes/menu.tscn"
 const OPTIONS_SCENE := "res://scenes/opciones.tscn"
+## Campaña completa: Laberinto → Pantano → Cueva → Río → Clearing
+const CAMPAIGN_SCENES: Array[String] = [
+	"res://scenes/world/Zone1_Labyrinth.tscn",
+	"res://scenes/world/Zone2_Swamp.tscn",
+	"res://scenes/world/Zone3_Cave.tscn",
+	"res://scenes/world/Zone4_Rio.tscn",
+	"res://scenes/world/Clearing.tscn",
+]
+const GAME_SCENE := "res://scenes/world/Zone1_Labyrinth.tscn"
+const DEMO_PANTANO_SCENE := "res://scenes/core/pantano_world.tscn"
 
 ## Resolución interna del juego (viewport lógico). La ventana escala encima de esto.
 const BASE_VIEWPORT := Vector2i(320, 180)
@@ -27,6 +36,7 @@ var sfx_volume: float = 1.0
 var fullscreen: bool = false
 var resolution_index: int = 2
 var colorblind_mode: ColorblindMode = ColorblindMode.NORMAL
+var player_skin: String = "exploradora"
 
 var _filter_layer: CanvasLayer
 var _filter_rect: ColorRect
@@ -95,6 +105,7 @@ func _load_settings() -> void:
 	fullscreen = config.get_value("display", "fullscreen", fullscreen)
 	resolution_index = config.get_value("display", "resolution_index", resolution_index)
 	colorblind_mode = config.get_value("accessibility", "colorblind_mode", colorblind_mode)
+	player_skin = config.get_value("player", "skin", player_skin)
 
 
 func save_settings() -> void:
@@ -105,6 +116,7 @@ func save_settings() -> void:
 	config.set_value("display", "fullscreen", fullscreen)
 	config.set_value("display", "resolution_index", resolution_index)
 	config.set_value("accessibility", "colorblind_mode", colorblind_mode)
+	config.set_value("player", "skin", player_skin)
 	config.save(SETTINGS_PATH)
 	settings_changed.emit()
 

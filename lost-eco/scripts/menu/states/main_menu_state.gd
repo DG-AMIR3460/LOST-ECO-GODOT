@@ -4,6 +4,9 @@ extends MenuState
 const BUTTON_ACTIONS := {
 	"jugar": "play",
 	"play": "play",
+	"elpantano": "demo",
+	"pantano": "demo",
+	"demo": "demo",
 	"opciones": "options",
 	"options": "options",
 	"salir": "quit",
@@ -25,7 +28,7 @@ func enter(context: Control, machine: Node) -> void:
 	_connect_buttons(context)
 
 
-func exit(context: Control, _machine: Node) -> void:
+func exit(context: Control, machine_ref: Node) -> void:
 	MenuHelpers.disconnect_all(_connections)
 	_machine = null
 
@@ -47,6 +50,8 @@ func _on_button_action(action: String) -> void:
 	match action:
 		"play":
 			_machine.transition_to_game()
+		"demo":
+			_machine.transition_to_demo_pantano()
 		"options":
 			_machine.transition_to_options()
 		"quit":

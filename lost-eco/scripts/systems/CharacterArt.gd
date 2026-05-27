@@ -25,6 +25,13 @@ const SPRITE_FILES: Dictionary = {
 
 const DEFAULT_SCALE: Dictionary = {
 	"alex": 0.16,
+	"exploradora": 0.15,
+	"monje": 0.15,
+	"medium": 0.15,
+	"cazador": 0.15,
+	"niña_perdida": 0.14,
+	"navegante": 0.15,
+	"tirador": 0.15,
 	"susurrantes": 0.14,
 	"parasito": 0.14,
 	"ahogados": 0.14,
@@ -46,6 +53,10 @@ static func is_ready() -> bool:
 	return make_sprite("alex") != null
 
 
+static func get_sprite_scale(key: String, scale_override: float = -1.0) -> float:
+	return scale_override if scale_override > 0.0 else DEFAULT_SCALE.get(key, 0.14)
+
+
 static func make_sprite(key: String, scale_override: float = -1.0) -> Sprite2D:
 	var tex := _load_texture(key)
 	if tex == null:
@@ -55,7 +66,7 @@ static func make_sprite(key: String, scale_override: float = -1.0) -> Sprite2D:
 	sprite.name = "Sprite"
 	sprite.texture = tex
 	sprite.centered = true
-	var scale_val: float = scale_override if scale_override > 0.0 else DEFAULT_SCALE.get(key, 0.14)
+	var scale_val: float = get_sprite_scale(key, scale_override)
 	sprite.scale = Vector2(scale_val, scale_val)
 	var h := tex.get_height() * scale_val
 	sprite.offset = Vector2(0, -h * 0.30)
@@ -96,9 +107,9 @@ static func _load_from_disk(key: String) -> Texture2D:
 
 static func _read_png_image(resource_path: String) -> Image:
 	var paths: Array[String] = [resource_path]
-	var abs := ProjectSettings.globalize_path(resource_path)
-	if not abs.is_empty():
-		paths.append(abs)
+	var abs_path := ProjectSettings.globalize_path(resource_path)
+	if not abs_path.is_empty():
+		paths.append(abs_path)
 	for path in paths:
 		var img := Image.new()
 		if img.load(path) == OK:

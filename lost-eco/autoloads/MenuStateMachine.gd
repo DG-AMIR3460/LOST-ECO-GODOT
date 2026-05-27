@@ -59,6 +59,14 @@ func transition_to_options() -> void:
 
 
 func transition_to_game() -> void:
+	await _start_gameplay_scene(SettingsManager.GAME_SCENE)
+
+
+func transition_to_demo_pantano() -> void:
+	await _start_gameplay_scene(SettingsManager.DEMO_PANTANO_SCENE)
+
+
+func _start_gameplay_scene(scene_path: String) -> void:
 	if _is_transitioning:
 		return
 	_is_transitioning = true
@@ -71,12 +79,16 @@ func transition_to_game() -> void:
 	GameManager.score = 0
 	GameManager.current_health = GameManager.max_health
 	GameManager.empathy_level = 0.0
+	GameManager.player = null
+	GameManager.close_pause()
 	GameManager.empathy_changed.emit(GameManager.empathy_level)
 	GameManager.health_changed.emit(GameManager.current_health)
 	GameManager.score_changed.emit(GameManager.score)
 
 	AudioManager.stop_menu_music(0.6)
-	await SceneTransition.change_scene(SettingsManager.GAME_SCENE)
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	await SceneTransition.change_scene(scene_path)
 	_is_transitioning = false
 
 

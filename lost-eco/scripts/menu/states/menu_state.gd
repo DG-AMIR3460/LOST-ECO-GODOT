@@ -8,10 +8,10 @@ func get_state_name() -> String:
 
 
 ## Se invoca al activar este estado sobre un contexto visual (escena/panel).
-func enter(_context: Control, _machine: Node) -> void:
+func enter(_context: Control, machine_ref: Node) -> void:
 	pass
 
 
 ## Se invoca al salir del estado; libera señales y referencias.
-func exit(_context: Control, _machine: Node) -> void:
+func exit(_context: Control, machine_ref: Node) -> void:
 	pass

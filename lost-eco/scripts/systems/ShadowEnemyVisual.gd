@@ -93,7 +93,31 @@ static func _create_polygon_enemy(parent: Node, world_pos: Vector2, palette: Dic
 	aura_tween.tween_property(aura, "modulate:a", 0.55, 0.9)
 	aura_tween.tween_property(aura, "modulate:a", 1.0, 0.9)
 
+	var eye_light := PointLight2D.new()
+	eye_light.color = Color(0.98, 0.08, 0.12)
+	eye_light.energy = 1.15
+	eye_light.texture_scale = 0.55
+	LightTextureFactory.apply_crimson_eye(eye_light, Vector2.ZERO, 1.15)
+	enemy.add_child(eye_light)
+
+	var smoke := GPUParticles2D.new()
+	smoke.amount = 10
+	smoke.lifetime = 1.2
+	smoke.preprocess = 0.4
+	var sm := ParticleProcessMaterial.new()
+	sm.direction = Vector3(0, -1, 0)
+	sm.spread = 140.0
+	sm.initial_velocity_min = 2.0
+	sm.initial_velocity_max = 8.0
+	sm.gravity = Vector3(0, -12, 0)
+	sm.scale_min = 0.4
+	sm.scale_max = 1.1
+	sm.color = Color(0.12, 0.02, 0.06, 0.45)
+	smoke.process_material = sm
+	enemy.add_child(smoke)
+
 	var scale_factor: float = palette.get("scale", 0.85)
 	enemy.scale = Vector2(scale_factor, scale_factor)
+	enemy.modulate = Color(0.35, 0.32, 0.4, 0.95)
 
 	return enemy

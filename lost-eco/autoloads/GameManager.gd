@@ -40,7 +40,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _game_over_in_progress or _returning_to_menu:
 		return
-	if _is_menu_scene():
+	if _is_menu_scene() or _is_core_gameplay_scene():
 		return
 	if _pause_open:
 		close_pause()
@@ -56,7 +56,7 @@ func open_pause() -> void:
 	_pause_layer.visible = true
 	_pause_open = true
 	get_tree().paused = true
-	if player:
+	if player and player.has_method("set_can_move"):
 		player.set_can_move(false)
 
 
@@ -67,7 +67,7 @@ func close_pause() -> void:
 	get_tree().paused = false
 	if _pause_layer:
 		_pause_layer.visible = false
-	if player:
+	if player and player.has_method("set_can_move"):
 		player.set_can_move(true)
 
 
@@ -113,7 +113,7 @@ func heal(amount: int = 1) -> void:
 
 func _game_over() -> void:
 	close_pause()
-	if player:
+	if player and player.has_method("set_can_move"):
 		player.set_can_move(false)
 	await get_tree().create_timer(1.5).timeout
 	current_health = max_health
@@ -133,6 +133,14 @@ func _is_menu_scene() -> bool:
 		return true
 	var path: String = current.scene_file_path
 	return path == SettingsManager.MENU_SCENE or path == SettingsManager.OPTIONS_SCENE
+
+
+func _is_core_gameplay_scene() -> bool:
+	var current := get_tree().current_scene
+	if current == null:
+		return false
+	var path: String = current.scene_file_path
+	return path.contains("/core/") or path.contains("pantano_world")
 
 
 func _ensure_pause_layer() -> void:

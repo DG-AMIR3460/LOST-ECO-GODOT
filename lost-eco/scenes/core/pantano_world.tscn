@@ -1,0 +1,52 @@
+[gd_scene load_steps=9 format=3 uid="uid://lost_eco_pantano"]
+
+[ext_resource type="Script" path="res://scripts/core/world/PantanoWorldController.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/core/session/GameSession.gd" id="2_session"]
+[ext_resource type="Script" path="res://scripts/core/enemies/EnemyFactory.gd" id="3_factory"]
+[ext_resource type="Script" path="res://scripts/core/level/LevelProceduralObstacle.gd" id="4_level"]
+[ext_resource type="Script" path="res://scripts/core/accessibility/AccessibilityManager.gd" id="5_access"]
+[ext_resource type="Script" path="res://scripts/core/cinematics/DeathCinematicDirector.gd" id="6_death"]
+[ext_resource type="Script" path="res://scripts/core/cinematics/ScreenShake.gd" id="7_shake"]
+[ext_resource type="Script" path="res://scripts/core/player/PlayerSkinMapper.gd" id="8_skin"]
+
+[node name="PantanoWorld" type="Node2D"]
+script = ExtResource("1_world")
+
+[node name="CanvasModulate" type="CanvasModulate" parent="."]
+color = Color(0.18, 0.16, 0.32, 1)
+
+[node name="Gameplay" type="Node2D" parent="."]
+
+[node name="Hazards" type="Node2D" parent="."]
+
+[node name="Echoes" type="Node2D" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="GameSession" type="Node" parent="."]
+script = ExtResource("2_session")
+
+[node name="EnemyFactory" type="Node" parent="."]
+script = ExtResource("3_factory")
+
+[node name="LevelProceduralObstacle" type="Node" parent="."]
+script = ExtResource("4_level")
+difficulty = 1.45
+spike_count = 14
+collapsing_platform_count = 7
+echo_relocate_count = 5
+
+[node name="AccessibilityManager" type="Node" parent="."]
+script = ExtResource("5_access")
+
+[node name="DeathCinematicDirector" type="Node" parent="."]
+script = ExtResource("6_death")
+
+[node name="ScreenShake" type="Node" parent="."]
+script = ExtResource("7_shake")
+
+[node name="PlayerSkinMapper" type="Node" parent="."]
+script = ExtResource("8_skin")
+
+[node name="VignetteLayer" type="CanvasLayer" parent="."]
+layer = 90

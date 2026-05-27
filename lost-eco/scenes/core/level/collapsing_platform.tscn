@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://lost_eco_collapse"]
+
+[ext_resource type="Script" path="res://scripts/core/level/CollapsingPlatform.gd" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_plat"]
+size = Vector2(40, 8)
+
+[node name="CollapsingPlatform" type="StaticBody2D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_plat")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.2, 0.25, 0.14, 0.9)
+polygon = PackedVector2Array(-20, -4, 20, -4, 20, 4, -20, 4)
+
+[node name="Detector" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Detector"]
+shape = SubResource("RectangleShape2D_plat")

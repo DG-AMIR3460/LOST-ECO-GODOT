@@ -29,6 +29,8 @@ func change_scene(scene_path: String, fade_duration: float = DEFAULT_FADE_DURATI
 	DialogueManager.clear_all()
 
 	await fade_out(fade_duration)
+	get_tree().paused = false
+	Engine.time_scale = 1.0
 	var error := get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("SceneTransition: no se pudo cargar %s (error %s)" % [scene_path, error])

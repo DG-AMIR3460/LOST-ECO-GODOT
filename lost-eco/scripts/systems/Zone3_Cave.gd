@@ -26,9 +26,9 @@ const MAP = [
 ]
 
 const TS = 16
-const FLOOR_COLOR       = Color(0.48, 0.48, 0.50)
-const FLOOR_DARK_COLOR  = Color(0.30, 0.30, 0.33)
-const WALL_COLOR        = Color(0.14, 0.14, 0.16)
+const FLOOR_COLOR       = Color(0.14, 0.13, 0.17)
+const FLOOR_DARK_COLOR  = Color(0.09, 0.08, 0.11)
+const WALL_COLOR        = Color(0.06, 0.05, 0.08)
 const ECHO_COLOR        = Color(0.92, 0.82, 0.35)
 const CRYSTAL_COLOR     = Color(0.58, 0.56, 0.52)
 const ENEMY_BODY_COLOR  = Color(0.82, 0.68, 0.12)
@@ -73,21 +73,28 @@ var _boss_sprite: CanvasItem = null
 var _boss_area: Area2D = null
 var _boss_tween: Tween = null
 
-var hud_layer: CanvasLayer = null
-var lbl_score: Label = null
-var lbl_health: Label = null
-var lbl_echo: Label = null
-var lbl_light: Label = null
+var hud_layer: PremiumZoneHUD = null
 var minimap: ZoneMinimap = null
+var _gothic_player: GothicPlayerVisual = null
+var _atmosphere: GothicAtmosphere = null
 
 
 func _ready() -> void:
-	RenderingServer.set_default_clear_color(Color(0.22, 0.22, 0.24))
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	RenderingServer.set_default_clear_color(Color(0.04, 0.03, 0.07))
+	var fog_ui := get_node_or_null("CanvasLayer")
+	if fog_ui:
+		fog_ui.visible = false
 	_generate_map()
 	_spawn_enemies()
+	_setup_gothic_player()
 	_setup_hud()
+	if GameManager.player:
+		_atmosphere = GothicAtmosphere.new()
+		add_child(_atmosphere)
+		_atmosphere.setup(self, GameManager.player, "cave")
 	GameManager.health_changed.connect(func(_v): _update_hud())
-	GameManager.score_changed.connect(func(_v): _update_hud())
 
 	if GameManager.player:
 		GameManager.player.has_weapon = false
@@ -136,9 +143,7 @@ func _generate_map() -> void:
 
 
 func _draw() -> void:
-	for r in floors: draw_rect(r, FLOOR_COLOR)
-	for r in floor_shades: draw_rect(r, FLOOR_DARK_COLOR)
-	for r in walls:  draw_rect(r, WALL_COLOR)
+	GothicTilePainter.draw_zone_map(self, floors, floor_shades, walls, "cave")
 
 
 func _add_wall(pos: Vector2) -> void:
@@ -164,28 +169,7 @@ func _spawn_crystal(pos: Vector2) -> void:
 
 
 func _spawn_echo(pos: Vector2) -> void:
-	var a = Area2D.new()
-	a.global_position = pos + Vector2(TS / 2.0, TS / 2.0)
-	a.add_to_group("echo_of_light")
-	add_child(a)
-	var c = CollisionShape2D.new()
-	var s = CircleShape2D.new()
-	s.radius = 7
-	c.shape = s
-	a.add_child(c)
-	var poly = Polygon2D.new()
-	poly.polygon = PackedVector2Array([
-		Vector2(-5, -5), Vector2(5, -5), Vector2(5, 5), Vector2(-5, 5)
-	])
-	poly.color = ECHO_COLOR
-	a.add_child(poly)
-	var tween = create_tween().set_loops()
-	tween.tween_property(poly, "modulate", Color(1.8, 1.2, 2.5), 0.55)
-	tween.tween_property(poly, "modulate", Color(1.0, 1.0, 1.0), 0.55)
-	a.body_entered.connect(func(body):
-		if body.is_in_group("player"):
-			_collect_echo(a)
-	)
+	EchoStarVisual.spawn(self, pos + Vector2(TS / 2.0, TS / 2.0), Callable(self, "_collect_echo"))
 
 
 func _collect_echo(node: Node) -> void:
@@ -328,12 +312,13 @@ func _spawn_enemies() -> void:
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"body": Color(0.85, 0.72, 0.12),
-		"glow": ENEMY_GLOW_COLOR,
-		"pulse": Color(1.9, 1.5, 0.40),
-		"eyes": Color(1.0, 0.92, 0.35),
-		"wisp": Color(0.35, 0.28, 0.06, 0.75),
-		"scale": 0.90,
+		"body": Color(0.08, 0.05, 0.12),
+		"glow": Color(0.35, 0.04, 0.1, 0.5),
+		"pulse": Color(1.4, 0.2, 0.35),
+		"eyes": Color(1.0, 0.12, 0.18),
+		"wisp": Color(0.2, 0.03, 0.08, 0.7),
+		"sprite": "espectro",
+		"scale": 0.92,
 	})
 
 	var area = Area2D.new()
@@ -407,6 +392,11 @@ func _use_light_pulse() -> void:
 		_update_hud()
 
 
+func _setup_gothic_player() -> void:
+	if GameManager.player:
+		_gothic_player = ZoneVisualBootstrap.setup_gothic_alex(GameManager.player)
+
+
 func _process(delta: float) -> void:
 	if GameManager.player and GameManager.player.has_meta("enemy_cd"):
 		var cd = maxf(0.0, GameManager.player.get_meta("enemy_cd") - delta)
@@ -414,6 +404,9 @@ func _process(delta: float) -> void:
 
 	if not GameManager.player:
 		return
+	if _gothic_player:
+		var vel := GameManager.player.velocity
+		_gothic_player.update_motion(vel, true, false, false)
 	var player_pos = GameManager.player.global_position
 
 	_event_timer -= delta
@@ -436,64 +429,28 @@ func _trigger_cave_echo() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = CanvasLayer.new()
-	hud_layer.layer = 10
+	hud_layer = PremiumZoneHUD.new()
+	hud_layer.setup("ZONA 3 — Cueva del Espejo", GameManager.max_health, MAX_CHARGES)
 	add_child(hud_layer)
-
-	lbl_score = _make_label(Vector2(4, 2), Color(1.0, 0.9, 0.3))
-	lbl_health = _make_label(Vector2(4, 13), Color(1.0, 0.35, 0.35))
-	lbl_echo = _make_label(Vector2(4, 24), Color(0.92, 0.82, 0.40))
-	lbl_light = _make_label(Vector2(4, 35), Color(0.85, 0.75, 0.35))
-
-	var lbl_zone = _make_label(Vector2(4, 46), Color(0.75, 0.72, 0.65))
-	lbl_zone.text = "ZONA 3: Cueva del Espejo"
-
-	var lbl_hint = _make_label(Vector2(4, 57), Color(0.60, 0.58, 0.52))
-	lbl_hint.text = "[J] Pulso  [ESC] Menú"
-
 	minimap = ZoneMinimap.new()
 	minimap.setup(MAP, {
 		"floor": FLOOR_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": Color(0.85, 0.72, 0.25),
-		"enemy": Color(0.95, 0.85, 0.20),
-		"border": Color(0.70, 0.68, 0.62, 0.9),
+		"enemy": Color(0.92, 0.18, 0.28),
+		"border": Color(0.72, 0.58, 0.22, 0.9),
 	})
-	minimap.position = Vector2(224, 98)
+	minimap.position = Vector2(208, 88)
+	minimap.enable_fog_of_war()
 	hud_layer.add_child(minimap)
-
 	_update_hud()
 
 
-func _make_label(pos: Vector2, color: Color) -> Label:
-	var lbl = Label.new()
-	lbl.position = pos
-	lbl.add_theme_color_override("font_color", color)
-	lbl.add_theme_font_size_override("font_size", 9)
-	hud_layer.add_child(lbl)
-	return lbl
-
-
 func _update_hud() -> void:
-	if lbl_score:
-		lbl_score.text = "PTS: %d" % GameManager.score
-	if lbl_health:
-		var h = ""
-		for _i in GameManager.current_health:
-			h += "♥"
-		for _i in (GameManager.max_health - GameManager.current_health):
-			h += "♡"
-		lbl_health.text = "VIDA: " + h
-	if lbl_echo:
-		lbl_echo.text = "ECOS: %d/%d" % [echoes_collected, TOTAL_ECHOES]
-	if lbl_light:
-		var li = ""
-		for _i in light_charges:
-			li += "●"
-		for _i in (MAX_CHARGES - light_charges):
-			li += "○"
-		lbl_light.text = "LUZ:  " + li
+	if hud_layer:
+		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
+		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 
 func _update_minimap() -> void:

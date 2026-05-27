@@ -26,6 +26,8 @@ var current_line: int = 0
 var dialogue_active: bool = false
 
 func _ready() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
 	RenderingServer.set_default_clear_color(Color(0.15, 0.30, 0.10))
 	_build_clearing()
 

@@ -32,7 +32,7 @@ func enter(context: Control, machine: Node) -> void:
 	MenuHelpers.apply_menu_entry_presentation()
 
 
-func exit(_context: Control, _machine: Node) -> void:
+func exit(_context: Control, machine_ref: Node) -> void:
 	MenuHelpers.disconnect_all(_connections)
 	_context = null
 	_machine = null

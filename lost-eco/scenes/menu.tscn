@@ -96,6 +96,13 @@ focus_mode = 0
 text = "Jugar"
 script = ExtResource("5_btn_script")
 
+[node name="ElPantano" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(88, 22)
+layout_mode = 2
+focus_mode = 0
+text = "El Pantano"
+script = ExtResource("5_btn_script")
+
 [node name="Opciones" type="Button" parent="Buttons"]
 custom_minimum_size = Vector2(88, 22)
 layout_mode = 2

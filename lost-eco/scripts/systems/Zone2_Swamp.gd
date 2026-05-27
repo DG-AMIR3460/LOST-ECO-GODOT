@@ -69,19 +69,21 @@ const MAX_CHARGES: int = 3
 const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
 
-var hud_layer: CanvasLayer = null
-var lbl_score: Label = null
-var lbl_health: Label = null
-var lbl_echo: Label = null
-var lbl_light: Label = null
+var hud_layer: PremiumZoneHUD = null
 var minimap: ZoneMinimap = null
+var _gothic_player: GothicPlayerVisual = null
 
 
 func _ready() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
 	RenderingServer.set_default_clear_color(Color(0.10, 0.13, 0.06))
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
+	if GameManager.player:
+		_gothic_player = ZoneVisualBootstrap.setup_gothic_alex(GameManager.player)
+		ZoneVisualBootstrap.apply_atmosphere(self, GameManager.player, "swamp")
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
 
@@ -127,8 +129,7 @@ func _generate_map() -> void:
 
 
 func _draw() -> void:
-	for r in floors: draw_rect(r, MUD_COLOR)
-	for r in walls:  draw_rect(r, WALL_COLOR)
+	GothicTilePainter.draw_zone_map(self, floors, [], walls, "swamp")
 
 
 func _add_wall(pos: Vector2) -> void:
@@ -162,28 +163,7 @@ func _add_mud_zone(pos: Vector2) -> void:
 
 
 func _spawn_echo(pos: Vector2) -> void:
-	var a = Area2D.new()
-	a.global_position = pos + Vector2(TS / 2.0, TS / 2.0)
-	a.add_to_group("echo_of_light")
-	add_child(a)
-	var c = CollisionShape2D.new()
-	var s = CircleShape2D.new()
-	s.radius = 7
-	c.shape = s
-	a.add_child(c)
-	var poly = Polygon2D.new()
-	poly.polygon = PackedVector2Array([
-		Vector2(-5, -5), Vector2(5, -5), Vector2(5, 5), Vector2(-5, 5)
-	])
-	poly.color = ECHO_COLOR
-	a.add_child(poly)
-	var tween = create_tween().set_loops()
-	tween.tween_property(poly, "modulate", Color(1.6, 2.0, 0.8), 0.55)
-	tween.tween_property(poly, "modulate", Color(1.0, 1.0, 1.0), 0.55)
-	a.body_entered.connect(func(body):
-		if body.is_in_group("player"):
-			_collect_echo(a)
-	)
+	EchoStarVisual.spawn(self, pos + Vector2(TS / 2.0, TS / 2.0), Callable(self, "_collect_echo"))
 
 
 func _collect_echo(node: Node) -> void:
@@ -340,6 +320,8 @@ func _process(delta: float) -> void:
 
 	if not GameManager.player:
 		return
+	if _gothic_player:
+		_gothic_player.update_motion(GameManager.player.velocity, true)
 	var player_pos = GameManager.player.global_position
 
 	_event_timer -= delta
@@ -388,64 +370,26 @@ func _check_exit_overlap() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = CanvasLayer.new()
-	hud_layer.layer = 10
-	add_child(hud_layer)
-
-	lbl_score = _make_label(Vector2(4, 2), Color(1.0, 0.9, 0.3))
-	lbl_health = _make_label(Vector2(4, 13), Color(1.0, 0.35, 0.35))
-	lbl_echo = _make_label(Vector2(4, 24), Color(0.6, 0.95, 0.5))
-	lbl_light = _make_label(Vector2(4, 35), Color(0.5, 0.9, 0.6))
-
-	var lbl_zone = _make_label(Vector2(4, 46), Color(0.5, 0.8, 0.5))
-	lbl_zone.text = "ZONA 2: El Pantano"
-
-	var lbl_hint = _make_label(Vector2(4, 57), Color(0.55, 0.65, 0.45))
-	lbl_hint.text = "[J] Pulso  [ESC] Menú"
-
+	hud_layer = ZoneVisualBootstrap.create_hud(self, "ZONA 2 — El Pantano", MAX_CHARGES)
 	minimap = ZoneMinimap.new()
 	minimap.setup(MAP, {
 		"floor": MUD_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
-		"enemy": Color(0.55, 0.90, 0.35),
-		"border": Color(0.55, 0.80, 0.35, 0.9),
+		"enemy": Color(0.92, 0.18, 0.28),
+		"border": Color(0.55, 0.72, 0.22, 0.9),
 	})
-	minimap.position = Vector2(224, 98)
+	minimap.position = Vector2(208, 88)
+	minimap.enable_fog_of_war()
 	hud_layer.add_child(minimap)
-
 	_update_hud()
 
 
-func _make_label(pos: Vector2, color: Color) -> Label:
-	var lbl = Label.new()
-	lbl.position = pos
-	lbl.add_theme_color_override("font_color", color)
-	lbl.add_theme_font_size_override("font_size", 9)
-	hud_layer.add_child(lbl)
-	return lbl
-
-
 func _update_hud() -> void:
-	if lbl_score:
-		lbl_score.text = "PTS: %d" % GameManager.score
-	if lbl_health:
-		var h = ""
-		for _i in GameManager.current_health:
-			h += "♥"
-		for _i in (GameManager.max_health - GameManager.current_health):
-			h += "♡"
-		lbl_health.text = "VIDA: " + h
-	if lbl_echo:
-		lbl_echo.text = "ECOS: %d/%d" % [echoes_collected, TOTAL_ECHOES]
-	if lbl_light:
-		var li = ""
-		for _i in light_charges:
-			li += "●"
-		for _i in (MAX_CHARGES - light_charges):
-			li += "○"
-		lbl_light.text = "LUZ:  " + li
+	if hud_layer:
+		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
+		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 
 func _update_minimap() -> void:

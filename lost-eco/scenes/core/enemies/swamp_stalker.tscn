@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://lost_eco_stalker"]
+
+[ext_resource type="Script" path="res://scripts/core/enemies/SwampStalkerEnemy.gd" id="1_script"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_stalker"]
+radius = 7.0
+height = 16.0
+
+[node name="SwampStalker" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_stalker")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+
+[node name="EyeLight" type="PointLight2D" parent="."]
+energy = 1.0
+color = Color(0.9, 0.15, 0.2, 1)
