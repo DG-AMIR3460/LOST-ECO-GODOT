@@ -26,6 +26,7 @@ SceneTransition="*res://autoloads/SceneTransition.gd"
 UISounds="*res://autoloads/UISounds.gd"
 MenuStateMachine="*res://autoloads/MenuStateMachine.gd"
 StoryReflections="*res://autoloads/StoryReflections.gd"
+ZoneCinematicDirector="*res://autoloads/ZoneCinematicDirector.gd"
 
 [display]
 

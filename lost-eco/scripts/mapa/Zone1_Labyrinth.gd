@@ -106,24 +106,25 @@ func _ready() -> void:
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
-	if GameManager.player:
-		_gothic_player = ZoneVisualBootstrap.setup_gothic_alex(GameManager.player)
-		ZoneVisualBootstrap.apply_atmosphere(self, GameManager.player, "labyrinth")
 	GameManager.empathy_changed.connect(_on_empathy_changed)
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
-
-	# Alex no lleva arma en zona 1 (el ataque = Pulso de Luz)
-	if GameManager.player:
-		GameManager.player.has_weapon = false
+	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	DialogueManager.show_zone_intro(
-		"ZONA 1 — Laberinto de Palabras",
-		"Las Sombras del Acoso guardan este lugar.\nRecoge 4 Ecos de Luz para abrir la salida.",
-		"Cada eco carga un Pulso de Luz [J] para repeler sombras.",
-		Color(0.95, 0.90, 0.45)
-	)
+	ZoneMissionBriefs.show_for_zone(1)
+
+
+func _finish_player_setup() -> void:
+	var setup := ZoneVisualBootstrap.finish_player_setup(self, MAP, TS, "labyrinth")
+	_gothic_player = setup.get("gothic") as GothicPlayerVisual
+	if GameManager.player:
+		GameManager.player.has_weapon = false
+	var cam := get_node_or_null("Camera2D") as Camera2D
+	if cam and GameManager.player:
+		cam.global_position = GameManager.player.global_position
+	queue_redraw()
+
 
 # ── Generación del mapa ───────────────────────────────────────────────────────
 func _generate_map() -> void:
@@ -137,8 +138,6 @@ func _generate_map() -> void:
 					_add_wall(pos)
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
-					if GameManager.player:
-						GameManager.player.global_position = pos + Vector2(8, 8)
 				"E":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_spawn_echo(pos)
@@ -414,7 +413,9 @@ func _setup_hud() -> void:
 
 func _update_hud() -> void:
 	if hud_layer:
-		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
+		hud_layer.update_status(
+			"ECOS %d/%d — con %d abre SALIDA (X)" % [echoes_collected, TOTAL_ECHOES, TOTAL_ECHOES]
+		)
 		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 
@@ -451,12 +452,11 @@ func _zone_complete() -> void:
 	QuestManager.advance_quest("zone1")
 	GameManager.update_empathy(0.33)
 	GameManager.add_score(500)
-	DialogueManager.show_corner_notice("¡Zona completada! Pasando al nivel 2...", Color(0.95, 0.90, 0.50), 3.0)
 	var refl := StoryReflections.get_zone_complete(1)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 3.5)
-	await get_tree().create_timer(3.5).timeout
-	await SceneTransition.change_scene("res://scenes/world/Zone2_Swamp.tscn")
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 2.5)
+		await get_tree().create_timer(2.5).timeout
+	await SceneTransition.play_bridge_and_change_scene(1, "res://scenes/world/Zone2_Swamp.tscn")
 
 func _on_empathy_changed(v: float) -> void:
 	modulate = Color(0.5 + v * 0.5, 0.5 + v * 0.5, 0.6 + v * 0.4)

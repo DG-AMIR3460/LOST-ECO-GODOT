@@ -1,6 +1,6 @@
 extends RefCounted
 class_name ShadowEnemyVisual
-## Sombras enemigas visibles: silueta roja + ojos brillantes + halo.
+## Sombras enemigas visibles: silueta + ojos brillantes + halo.
 
 
 static func create(parent: Node, world_pos: Vector2, palette: Dictionary) -> Node2D:
@@ -118,6 +118,6 @@ static func _create_polygon_enemy(parent: Node, world_pos: Vector2, palette: Dic
 
 	var scale_factor: float = palette.get("scale", 0.85)
 	enemy.scale = Vector2(scale_factor, scale_factor)
-	enemy.modulate = Color(0.35, 0.32, 0.4, 0.95)
+	enemy.modulate = palette.get("modulate", Color(0.35, 0.32, 0.4, 0.95))
 
 	return enemy

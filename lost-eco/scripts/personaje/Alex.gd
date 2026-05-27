@@ -6,7 +6,7 @@ const BASE_SPEED: float = 90.0
 
 @export var has_weapon: bool = true
 
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+var animated_sprite: AnimatedSprite2D = null
 @onready var mud_particles: GPUParticles2D = $MudParticles
 @onready var interact_area: Area2D = $InteractArea
 
@@ -30,16 +30,40 @@ func _ready() -> void:
 	add_to_group("player")
 	GameManager.empathy_changed.connect(_on_empathy_changed)
 	z_index = 10
+	can_move = true
 
+	# Quitar icono de Godot del .tscn (evita el logo gigante si falla el sprite).
 	if animated_sprite:
-		animated_sprite.visible = false
+		animated_sprite.queue_free()
+		animated_sprite = null
 	if mud_particles:
 		mud_particles.emitting = false
 
+	_ensure_visible_character()
+
+
+func _ensure_visible_character() -> void:
 	if CharacterArt.is_ready():
 		_setup_gothic_sprite_visual()
-	else:
-		_build_character()
+		if _gothic_sprite_is_valid():
+			return
+		if _gothic_visual:
+			_gothic_visual.queue_free()
+			_gothic_visual = null
+	_hide_legacy_visual()
+	_build_character()
+
+
+func _gothic_sprite_is_valid() -> bool:
+	if _gothic_visual == null:
+		return false
+	var anim := _gothic_visual.get_node_or_null("BodyAnim") as AnimatedSprite2D
+	if anim == null or anim.sprite_frames == null:
+		return false
+	if anim.sprite_frames.get_frame_count("idle") == 0:
+		return false
+	var tex := anim.sprite_frames.get_frame_texture("idle", 0)
+	return tex != null and tex.get_width() >= 8
 
 
 func _setup_gothic_sprite_visual() -> void:
@@ -195,8 +219,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("attack") and has_weapon:
 		action_performed.emit("attack", 1.0)
 		_play_attack_animation()
-	if event.is_action_pressed("drop_weapon") and has_weapon:
-		_drop_weapon()
+	if event.is_action_pressed("drop_weapon"):
+		peace_gesture()
 
 
 func _try_interact() -> void:
@@ -212,15 +236,25 @@ func _try_interact() -> void:
 			return
 
 
-func _drop_weapon() -> void:
+func peace_gesture() -> void:
+	var had_weapon := has_weapon
 	has_weapon = false
+	set_meta("peace_commitment", true)
 	action_performed.emit("drop_weapon", 0.0)
 	if _gothic_visual:
 		_gothic_visual.flash_attack()
 	elif visual:
 		var tween := create_tween()
-		tween.tween_property(visual, "modulate", Color(2.5, 2.5, 2.5), 0.08)
+		tween.tween_property(visual, "modulate", Color(2.0, 2.2, 1.4), 0.08)
 		tween.tween_property(visual, "modulate", Color(1.0, 1.0, 1.0), 0.35)
+	if had_weapon:
+		DialogueManager.show_corner_notice("Soltaste el arma.", Color(0.92, 0.85, 0.45), 1.8)
+	else:
+		DialogueManager.show_corner_notice(
+			"Manos vacías — sin violencia.",
+			Color(0.82, 0.92, 1.0),
+			1.8
+		)
 
 
 func _play_attack_animation() -> void:

@@ -31,8 +31,8 @@ const WALL_COLOR        = Color(0.10, 0.12, 0.06)
 const ECHO_COLOR        = Color(0.6, 0.85, 0.45)
 const EXIT_LOCKED_COLOR = Color(0.28, 0.32, 0.18)
 const EXIT_OPEN_COLOR   = Color(0.35, 0.90, 0.40)
-const ENEMY_BODY_COLOR  = Color(0.12, 0.28, 0.10)
-const ENEMY_GLOW_COLOR  = Color(0.35, 0.55, 0.20, 0.35)
+const ENEMY_BODY_COLOR  = Color(0.58, 0.10, 0.48)
+const ENEMY_GLOW_COLOR  = Color(0.95, 0.42, 0.78, 0.72)
 
 var floors: Array = []
 var walls:  Array = []
@@ -88,22 +88,20 @@ func _ready() -> void:
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
-	if GameManager.player:
-		_gothic_player = ZoneVisualBootstrap.setup_gothic_alex(GameManager.player)
-		ZoneVisualBootstrap.apply_atmosphere(self, GameManager.player, "swamp")
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
-
-	if GameManager.player:
-		GameManager.player.has_weapon = false
+	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	DialogueManager.show_zone_intro(
-		"ZONA 2 — El Pantano",
-		"Activa 3 Pilares de Paciencia (mantén [E]).\nLuego recoge 3 Ecos para abrir la salida.",
-		"El fango te frena — no corras.",
-		Color(0.65, 0.95, 0.50)
-	)
+	ZoneMissionBriefs.show_for_zone(2)
+
+
+func _finish_player_setup() -> void:
+	var setup := ZoneVisualBootstrap.finish_player_setup(self, MAP, TS, "swamp")
+	_gothic_player = setup.get("gothic") as GothicPlayerVisual
+	if GameManager.player:
+		GameManager.player.has_weapon = false
+		GameManager.player.set_speed_multiplier(0.65)
 
 
 func _generate_map() -> void:
@@ -118,9 +116,6 @@ func _generate_map() -> void:
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_mud_zone(pos)
-					if GameManager.player:
-						GameManager.player.global_position = pos + Vector2(8, 8)
-						GameManager.player.set_speed_multiplier(0.65)
 				"E":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_mud_zone(pos)
@@ -226,7 +221,9 @@ func _spawn_pillar(pos: Vector2) -> void:
 func _update_hud_status() -> void:
 	if hud_layer:
 		hud_layer.update_status(
-			"ECO %d/%d  PIL %d/%d" % [echoes_collected, TOTAL_ECHOES, pillars_activated, TOTAL_PILLARS]
+			"ECOS %d/%d  PILARES %d/%d → SALIDA X" % [
+				echoes_collected, TOTAL_ECHOES, pillars_activated, TOTAL_PILLARS
+			]
 		)
 
 
@@ -282,12 +279,13 @@ func _spawn_enemies() -> void:
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"body": Color(0.18, 0.55, 0.14),
-		"glow": Color(0.40, 0.85, 0.30, 0.55),
-		"pulse": Color(0.65, 1.6, 0.55),
-		"eyes": Color(0.90, 1.0, 0.55),
-		"wisp": Color(0.12, 0.30, 0.08, 0.75),
-		"scale": 0.90,
+		"body": ENEMY_BODY_COLOR,
+		"glow": ENEMY_GLOW_COLOR,
+		"pulse": Color(1.5, 0.55, 1.25),
+		"eyes": Color(1.0, 0.92, 0.35),
+		"wisp": Color(0.75, 0.22, 0.55, 0.65),
+		"modulate": Color(0.92, 0.82, 1.0, 1.0),
+		"scale": 0.95,
 	})
 
 	var area = Area2D.new()
@@ -488,7 +486,7 @@ func _setup_hud() -> void:
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
-		"enemy": Color(0.92, 0.18, 0.28),
+		"enemy": Color(0.95, 0.45, 0.82),
 	}, true, 4)
 	_update_hud_status()
 
@@ -533,9 +531,8 @@ func _zone_complete() -> void:
 	QuestManager.advance_quest("zone2")
 	GameManager.update_empathy(0.33)
 	GameManager.add_score(400)
-	DialogueManager.show_corner_notice("¡Zona completada! Pasando al nivel 3...", Color(0.55, 0.95, 0.45), 3.0)
 	var refl := StoryReflections.get_zone_complete(2)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+400 pts", refl.accent, 3.5)
-	await get_tree().create_timer(3.5).timeout
-	await SceneTransition.change_scene("res://scenes/world/Zone3_Cave.tscn")
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+400 pts", refl.accent, 2.5)
+		await get_tree().create_timer(2.5).timeout
+	await SceneTransition.play_bridge_and_change_scene(2, "res://scenes/world/Zone3_Cave.tscn")

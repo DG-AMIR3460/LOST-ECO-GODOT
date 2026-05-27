@@ -82,22 +82,20 @@ func _ready() -> void:
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
-	if GameManager.player:
-		_gothic_player = ZoneVisualBootstrap.setup_gothic_alex(GameManager.player)
-		ZoneVisualBootstrap.apply_atmosphere(self, GameManager.player, "river")
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
-
-	if GameManager.player:
-		GameManager.player.has_weapon = false
+	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	DialogueManager.show_zone_intro(
-		"ZONA 4 — El Río",
-		"El agua te frena a cada paso.\nRecoge 3 Ecos de Luz para abrir la salida.",
-		"Usa [J] para repeler sombras. Sigue la corriente con paciencia.",
-		Color(0.45, 0.90, 0.75)
-	)
+	ZoneMissionBriefs.show_for_zone(4)
+
+
+func _finish_player_setup() -> void:
+	var setup := ZoneVisualBootstrap.finish_player_setup(self, MAP, TS, "river")
+	_gothic_player = setup.get("gothic") as GothicPlayerVisual
+	if GameManager.player:
+		GameManager.player.has_weapon = false
+		GameManager.player.set_speed_multiplier(0.70)
 
 
 func _generate_map() -> void:
@@ -112,9 +110,6 @@ func _generate_map() -> void:
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_water_zone(pos)
-					if GameManager.player:
-						GameManager.player.global_position = pos + Vector2(8, 8)
-						GameManager.player.set_speed_multiplier(0.70)
 				"E":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_water_zone(pos)
@@ -383,13 +378,14 @@ func _setup_hud() -> void:
 		"exit": EXIT_OPEN_COLOR,
 		"enemy": Color(0.92, 0.18, 0.28),
 	}, true, 4)
-	hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
 	_update_hud()
 
 
 func _update_hud() -> void:
 	if hud_layer:
-		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
+		hud_layer.update_status(
+			"ECOS %d/%d — con %d abre SALIDA (X)" % [echoes_collected, TOTAL_ECHOES, TOTAL_ECHOES]
+		)
 		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 
@@ -427,9 +423,8 @@ func _zone_complete() -> void:
 	QuestManager.advance_quest("zone4")
 	GameManager.update_empathy(0.33)
 	GameManager.add_score(500)
-	DialogueManager.show_corner_notice("¡Zona completada! Llegando al claro...", Color(0.55, 0.95, 0.85), 3.0)
 	var refl := StoryReflections.get_zone_complete(4)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 3.5)
-	await get_tree().create_timer(3.5).timeout
-	await SceneTransition.change_scene("res://scenes/world/Clearing.tscn")
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 2.5)
+		await get_tree().create_timer(2.5).timeout
+	await SceneTransition.play_bridge_and_change_scene(4, "res://scenes/world/Clearing.tscn")

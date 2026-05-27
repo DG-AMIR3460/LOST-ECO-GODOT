@@ -84,6 +84,10 @@ func _end_dialogue() -> void:
 
 
 ## placement: "center" (modal + [E]) o "top_right" (esquina, también [E])
+func is_zone_intro_active() -> bool:
+	return _intro_active
+
+
 func show_zone_intro(
 	title: String,
 	objective: String,
@@ -144,7 +148,7 @@ func dismiss_zone_intro() -> void:
 	_active_banner = null
 
 	if GameManager.player and is_instance_valid(GameManager.player):
-		if GameManager.player.has_method("set_can_move") and not get_tree().paused:
+		if GameManager.player.has_method("set_can_move"):
 			GameManager.player.set_can_move(true)
 
 
@@ -158,6 +162,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _intro_continue_pressed(event: InputEvent) -> bool:
 	if event.is_action_pressed("interact"):
+		return true
+	if event.is_action_pressed("pause"):
 		return true
 	if event is InputEventKey and event.pressed and not event.echo:
 		return event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]
@@ -279,7 +285,7 @@ func _build_intro_panel(
 	box.add_child(sep)
 
 	var continue_lbl := _make_ui_label(
-		"[E] Continuar",
+		"[E] o [ESC] Continuar",
 		Color(0.55, 0.95, 0.50),
 		9,
 		_ui_font,

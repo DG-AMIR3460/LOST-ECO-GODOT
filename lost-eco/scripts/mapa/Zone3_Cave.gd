@@ -52,6 +52,9 @@ var boss_defeated: bool = false
 var memories: Array = []
 var seals: Array = []
 var _near_memory: Dictionary = {}
+var _near_seal: Dictionary = {}
+var _hint_cooldown: float = 0.0
+var _boss_hint_cd: float = 0.0
 
 const MEMORY_TILES = [
 	Vector2i(7, 2),
@@ -88,11 +91,10 @@ const STUN_TIME: float = 1.8
 
 var _transitioning: bool = false
 var _event_timer: float = 22.0
-var _boss_phase: int = 0
-var _boss_node: Node2D = null
-var _boss_sprite: CanvasItem = null
-var _boss_area: Area2D = null
-var _boss_tween: Tween = null
+var _boss_data: Dictionary = {}
+var _boss_arena_active: bool = false
+var _boss_sequence_running: bool = false
+var _arena_overlay: CanvasLayer = null
 
 var hud_layer: PremiumZoneHUD = null
 var minimap: ZoneMinimap = null
@@ -103,7 +105,7 @@ var _atmosphere: GothicAtmosphere = null
 func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	RenderingServer.set_default_clear_color(Color(0.04, 0.03, 0.07))
+	RenderingServer.set_default_clear_color(Color(0.09, 0.08, 0.14))
 	var fog_ui := get_node_or_null("CanvasLayer")
 	if fog_ui:
 		fog_ui.visible = false
@@ -111,24 +113,27 @@ func _ready() -> void:
 	_spawn_memories()
 	_spawn_seals()
 	_spawn_enemies()
-	_setup_gothic_player()
 	_setup_hud()
-	if GameManager.player:
-		_atmosphere = GothicAtmosphere.new()
-		add_child(_atmosphere)
-		_atmosphere.setup(self, GameManager.player, "cave")
 	GameManager.health_changed.connect(func(_v): _update_hud())
-
-	if GameManager.player:
-		GameManager.player.has_weapon = false
+	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	DialogueManager.show_zone_intro(
-		"ZONA 3 — Cueva del Espejo",
-		"Lee 3 Cristales [E], enciende 3 Sellos [J],\nrecoge 3 Ecos y san al jefe sin arma [Q].",
-		"Cada tarea desbloquea un paso distinto.",
-		Color(0.92, 0.82, 0.40)
-	)
+	ZoneMissionBriefs.show_for_zone(3)
+
+
+func _finish_player_setup() -> void:
+	var setup := ZoneVisualBootstrap.finish_player_setup(self, MAP, TS, "cave_bright")
+	_gothic_player = setup.get("gothic") as GothicPlayerVisual
+	_atmosphere = setup.get("atmosphere") as GothicAtmosphere
+	if GameManager.player:
+		GameManager.player.has_weapon = false
+		if not GameManager.player.action_performed.is_connected(_on_player_peace_action):
+			GameManager.player.action_performed.connect(_on_player_peace_action)
+
+
+func _on_player_peace_action(action_name: String, _intensity: float) -> void:
+	if action_name == "drop_weapon":
+		_try_heal_boss()
 
 
 func _generate_map() -> void:
@@ -144,8 +149,6 @@ func _generate_map() -> void:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					if randf() < 0.16:
 						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
-					if GameManager.player:
-						GameManager.player.global_position = pos + Vector2(8, 8)
 				"E":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					if randf() < 0.16:
@@ -194,8 +197,20 @@ func _spawn_memory(pos: Vector2, index: int) -> void:
 		Vector2(0, -6), Vector2(4, -1), Vector2(3, 5),
 		Vector2(-3, 5), Vector2(-4, -1)
 	])
-	poly.color = Color(0.55, 0.75, 0.95)
+	poly.color = Color(0.35, 0.65, 1.0)
 	node.add_child(poly)
+	var glow := Polygon2D.new()
+	glow.polygon = PackedVector2Array([
+		Vector2(-2, -8), Vector2(6, -3), Vector2(5, 7),
+		Vector2(-5, 7), Vector2(-6, -3)
+	])
+	glow.color = Color(0.55, 0.85, 1.0, 0.45)
+	node.add_child(glow)
+	var pl := PointLight2D.new()
+	pl.energy = 0.55
+	pl.texture_scale = 0.9
+	pl.color = Color(0.55, 0.82, 1.0)
+	node.add_child(pl)
 	var area := Area2D.new()
 	area.global_position = center
 	area.collision_layer = 0
@@ -221,14 +236,32 @@ func _spawn_seal(pos: Vector2) -> void:
 	var node := Node2D.new()
 	node.global_position = center
 	add_child(node)
+	var outer := Polygon2D.new()
+	outer.polygon = PackedVector2Array([
+		Vector2(-7, 0), Vector2(0, -7), Vector2(7, 0),
+		Vector2(0, 7), Vector2(-7, 0)
+	])
+	outer.color = Color(0.85, 0.65, 0.15, 0.35)
+	node.add_child(outer)
 	var ring := Polygon2D.new()
 	ring.polygon = PackedVector2Array([
 		Vector2(-5, 0), Vector2(0, -5), Vector2(5, 0),
 		Vector2(0, 5), Vector2(-5, 0)
 	])
-	ring.color = Color(0.35, 0.30, 0.45)
+	ring.color = Color(0.75, 0.55, 0.12)
 	node.add_child(ring)
-	seals.append({"node": node, "ring": ring, "pos": center, "done": false})
+	var area := Area2D.new()
+	area.global_position = center
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.monitoring = true
+	add_child(area)
+	var c := CollisionShape2D.new()
+	var s := CircleShape2D.new()
+	s.radius = 12
+	c.shape = s
+	area.add_child(c)
+	seals.append({"node": node, "ring": ring, "outer": outer, "area": area, "pos": center, "done": false})
 
 
 func _spawn_echo(pos: Vector2) -> void:
@@ -264,96 +297,147 @@ func _try_unlock_boss() -> void:
 
 
 func _unlock_boss() -> void:
+	if boss_unlocked or _boss_sequence_running:
+		return
 	boss_unlocked = true
-	if _boss_sprite:
-		_boss_sprite.modulate = Color(1.4, 1.0, 1.8)
-		var tween = create_tween().set_loops()
-		tween.tween_property(_boss_sprite, "modulate", Color(1.8, 0.8, 2.5), 0.45)
-		tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 0.45)
+	_run_boss_arena_sequence()
+
+
+func _run_boss_arena_sequence() -> void:
+	if _boss_sequence_running:
+		return
+	_boss_sequence_running = true
+	_event_timer = 99.0
+
 	if GameManager.player:
-		DialogueManager.show_corner_notice(
-			"Jefe despierto — acércate sin arma [Q].",
-			Color(0.85, 0.65, 1.0), 3.5
-		)
+		GameManager.player.set_can_move(false)
+
+	_dismiss_zone_enemies()
+	_show_arena_overlay()
+
+	DialogueManager.show_reflection(
+		"La Sala del Espejo",
+		"Las sombras retroceden...\nEl reflejo del miedo te espera.",
+		Color(0.82, 0.68, 1.0),
+		2.8
+	)
+	await get_tree().create_timer(1.0).timeout
+
+	var boss_center: Vector2 = _boss_data.get("center", Vector2.ZERO)
+	var cam := get_node_or_null("Camera2D")
+	if cam and cam.has_method("focus_on") and boss_center != Vector2.ZERO:
+		await cam.focus_on(boss_center, 1.6)
+
+	MirrorBossVisual.play_awaken(self, _boss_data)
+	_boss_arena_active = true
+
+	await get_tree().create_timer(1.2).timeout
+
+	if GameManager.player and boss_center != Vector2.ZERO:
+		var safe := boss_center + Vector2(0, 28)
+		GameManager.player.global_position = safe
+
+	await get_tree().create_timer(0.4).timeout
+
+	if GameManager.player:
+		GameManager.player.set_can_move(true)
+
+	DialogueManager.show_corner_notice(
+		"Sala del Espejo — [E] o [Q] para sanar al jefe.",
+		Color(0.9, 0.78, 1.0),
+		4.0
+	)
+	_boss_sequence_running = false
+	_event_timer = 18.0
+
+
+func _dismiss_zone_enemies() -> void:
+	for ed in enemies:
+		var en: Node2D = ed.get("node")
+		if is_instance_valid(en):
+			en.set_meta("stunned", 999.0)
+			var tw := create_tween()
+			tw.tween_property(en, "modulate:a", 0.0, 0.7)
+		var ar: Area2D = ed.get("area")
+		if is_instance_valid(ar):
+			ar.monitoring = false
+
+
+func _show_arena_overlay() -> void:
+	if _arena_overlay:
+		_arena_overlay.queue_free()
+	_arena_overlay = CanvasLayer.new()
+	_arena_overlay.layer = 90
+	add_child(_arena_overlay)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.01, 0.06, 0.55)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_arena_overlay.add_child(dim)
 
 
 func _spawn_boss(pos: Vector2) -> void:
-	var center = pos + Vector2(TS / 2.0, TS / 2.0)
-	_boss_node = Node2D.new()
-	_boss_node.global_position = center
-	_boss_node.add_to_group("mirror_boss")
-	add_child(_boss_node)
-
-	var boss_poly := Polygon2D.new()
-	boss_poly.polygon = PackedVector2Array([
-		Vector2(0, -12), Vector2(10, -5), Vector2(8, 10),
-		Vector2(-8, 10), Vector2(-10, -5)
-	])
-	boss_poly.color = Color(0.45, 0.15, 0.65)
-	_boss_node.add_child(boss_poly)
-	_boss_sprite = boss_poly
-
-	for ox in [-4, 2]:
-		var eye := Polygon2D.new()
-		eye.polygon = PackedVector2Array([
-			Vector2(ox, -5), Vector2(ox + 2, -5), Vector2(ox + 2, -3), Vector2(ox, -3)
-		])
-		eye.color = Color(1.0, 0.85, 1.0)
-		_boss_node.add_child(eye)
-
-	if _boss_sprite:
-		_boss_tween = create_tween().set_loops()
-		_boss_tween.tween_property(_boss_sprite, "modulate", Color(1.2, 0.5, 1.8), 1.0)
-		_boss_tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 1.0)
-
-	_boss_area = Area2D.new()
-	_boss_area.global_position = center
-	add_child(_boss_area)
-	var c = CollisionShape2D.new()
-	var s = CircleShape2D.new()
-	s.radius = 20
-	c.shape = s
-	_boss_area.add_child(c)
-	_boss_area.body_entered.connect(_on_boss_body_entered)
+	_boss_data = MirrorBossVisual.spawn(self, pos, TS)
+	var area: Area2D = _boss_data.get("area")
+	if area:
+		area.body_entered.connect(_on_boss_body_entered)
+	var sprite: CanvasItem = _boss_data.get("sprite")
+	if sprite:
+		MirrorBossVisual.play_locked_idle(sprite)
 
 
 func _on_boss_body_entered(body: Node) -> void:
 	if not body.is_in_group("player") or boss_defeated:
 		return
 	if not boss_unlocked:
-		DialogueManager.show_corner_notice(_boss_lock_message(), Color(0.6, 0.5, 0.9), 2.0)
+		DialogueManager.show_corner_notice(_boss_lock_message(), Color(0.6, 0.5, 0.9), 2.5)
 		return
+	_boss_pulse()
+	DialogueManager.show_corner_notice(
+		"Jefe del espejo — [E] o [Q] para sanar (sin violencia).",
+		Color(0.88, 0.72, 1.0),
+		3.5
+	)
 
-	_boss_phase += 1
-	match _boss_phase:
-		1:
-			if _boss_tween:
-				_boss_tween.kill()
-			DialogueManager.show_corner_notice(
-				"¡No ataques! Acércate sin arma.",
-				Color(0.8, 0.5, 1.0), 3.0
-			)
-			_boss_pulse()
-		2:
-			DialogueManager.show_corner_notice(
-				"Está confundido — acércate y presiona [E].",
-				Color(0.9, 0.7, 1.0), 3.0
-			)
-		3:
-			if not GameManager.player.has_weapon_equipped():
-				_heal_boss(body)
-			else:
-				DialogueManager.show_corner_notice(
-					"Suelta el arma con [Q] primero.",
-					Color(1.0, 0.5, 0.3), 2.5
-				)
-				_boss_phase = 2
+
+func _boss_area() -> Area2D:
+	var a: Area2D = _boss_data.get("area")
+	return a if is_instance_valid(a) else null
+
+
+func _is_player_near_boss() -> bool:
+	var area := _boss_area()
+	return (
+		area != null
+		and GameManager.player != null
+		and area.overlaps_body(GameManager.player)
+	)
+
+
+func _try_heal_boss() -> void:
+	if boss_defeated:
+		return
+	if not boss_unlocked:
+		if _is_player_near_boss():
+			DialogueManager.show_corner_notice(_boss_lock_message(), Color(0.6, 0.5, 0.9), 2.5)
+		return
+	if not _is_player_near_boss():
+		DialogueManager.show_corner_notice(
+			"Entra a la Sala del Espejo (centro-abajo) y pulsa [E].",
+			Color(0.75, 0.65, 0.95),
+			2.5
+		)
+		return
+	_heal_boss(GameManager.player)
 
 
 func _boss_pulse() -> void:
+	var sprite: CanvasItem = _boss_data.get("sprite")
+	if sprite == null:
+		return
 	var tween = create_tween().set_loops(8)
-	tween.tween_property(_boss_sprite, "modulate", Color(1.8, 0.3, 2.0), 0.25)
-	tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 0.25)
+	tween.tween_property(sprite, "modulate", Color(1.8, 0.3, 2.0), 0.25)
+	tween.tween_property(sprite, "modulate", Color(1.0, 0.92, 1.2), 0.25)
 
 
 func _heal_boss(_player: Node) -> void:
@@ -365,10 +449,12 @@ func _heal_boss(_player: Node) -> void:
 		"El cristal se calienta... la oscuridad se disipa.",
 		Color(1.0, 0.85, 0.2), 3.0
 	)
-	var tween = create_tween()
-	tween.tween_property(_boss_sprite, "modulate", Color(2.0, 1.7, 0.3), 2.0)
-	tween.tween_property(_boss_node, "scale", Vector2(0.1, 0.1), 1.5)
-	tween.tween_callback(_zone_complete)
+	if _arena_overlay:
+		_arena_overlay.queue_free()
+		_arena_overlay = null
+	MirrorBossVisual.play_heal(self, _boss_data)
+	await get_tree().create_timer(2.2).timeout
+	_zone_complete()
 
 
 func _spawn_enemies() -> void:
@@ -424,20 +510,20 @@ func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 
 
 func _boss_lock_message() -> String:
-	return "ECO %d/%d  MEM %d/%d  SEL %d/%d" % [
-		echoes_collected, TOTAL_ECHOES,
+	return "Faltan: CRIST %d/%d  LUCES %d/%d  ECOS %d/%d" % [
 		memories_read, TOTAL_MEMORIES,
-		seals_lit, TOTAL_SEALS
+		seals_lit, TOTAL_SEALS,
+		echoes_collected, TOTAL_ECHOES
 	]
 
 
 func _update_hud_status() -> void:
 	if hud_layer:
 		hud_layer.update_status(
-			"ECOS %d/%d  MEM %d/%d  SEL %d/%d" % [
-				echoes_collected, TOTAL_ECHOES,
+			"CRIST %d/%d  LUCES %d/%d  ECOS %d/%d  → JEFE" % [
 				memories_read, TOTAL_MEMORIES,
-				seals_lit, TOTAL_SEALS
+				seals_lit, TOTAL_SEALS,
+				echoes_collected, TOTAL_ECHOES
 			]
 		)
 
@@ -447,7 +533,13 @@ func _input(event: InputEvent) -> void:
 		_use_light_pulse()
 		get_viewport().set_input_as_handled()
 	if event.is_action_pressed("interact"):
-		_try_read_memory()
+		_try_interact()
+		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("drop_weapon"):
+		if GameManager.player and GameManager.player.has_method("peace_gesture"):
+			GameManager.player.peace_gesture()
+		_try_heal_boss()
+		get_viewport().set_input_as_handled()
 
 
 func _use_light_pulse() -> void:
@@ -475,7 +567,7 @@ func _use_light_pulse() -> void:
 
 	_try_light_seals(player_pos)
 
-	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.9, 0.7, 1.0), 1.5)
+	DialogueManager.show_corner_notice("¡Pulso! Empuja enemigos (los círculos dorados usan [E]).", Color(0.9, 0.7, 1.0), 2.0)
 
 	await get_tree().create_timer(8.0).timeout
 	if not _transitioning:
@@ -498,22 +590,51 @@ func _light_seal(seal: Dictionary) -> void:
 	seal["done"] = true
 	seals_lit += 1
 	var ring: Polygon2D = seal.get("ring")
+	var outer: Polygon2D = seal.get("outer")
 	if ring:
-		ring.color = Color(0.95, 0.82, 0.35)
+		ring.color = Color(1.0, 0.92, 0.45)
+	if outer:
+		outer.color = Color(1.0, 0.85, 0.35, 0.7)
+	var seal_node: Node2D = seal.get("node")
+	if seal_node and not seal_node.has_node("SealLight"):
+		var pl := PointLight2D.new()
+		pl.name = "SealLight"
+		pl.energy = 0.7
+		pl.texture_scale = 1.1
+		pl.color = Color(1.0, 0.88, 0.4)
+		seal_node.add_child(pl)
 	GameManager.add_score(70)
 	DialogueManager.show_corner_notice(
-		"Sello encendido (%d/%d)" % [seals_lit, TOTAL_SEALS],
+		"Luz encendida (%d/%d)" % [seals_lit, TOTAL_SEALS],
 		Color(0.92, 0.78, 0.40), 1.6
 	)
 	_update_hud_status()
 	_try_unlock_boss()
 
 
-func _try_read_memory() -> void:
+func _try_interact() -> void:
 	_update_near_memory()
-	if _near_memory.is_empty() or _near_memory.get("done", true):
+	_update_near_seal()
+	if not _near_memory.is_empty() and not _near_memory.get("done", true):
+		_read_memory(_near_memory)
 		return
-	_read_memory(_near_memory)
+	if not _near_seal.is_empty() and not _near_seal.get("done", true):
+		_light_seal(_near_seal)
+		return
+	_try_heal_boss()
+
+
+func _update_near_seal() -> void:
+	_near_seal = {}
+	if GameManager.player == null:
+		return
+	for seal in seals:
+		if seal.get("done", false):
+			continue
+		var area: Area2D = seal.get("area")
+		if is_instance_valid(area) and area.overlaps_body(GameManager.player):
+			_near_seal = seal
+			return
 
 
 func _read_memory(mem: Dictionary) -> void:
@@ -530,7 +651,7 @@ func _read_memory(mem: Dictionary) -> void:
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.0)
 	DialogueManager.show_corner_notice(
-		"Cristal leído (%d/%d)" % [memories_read, TOTAL_MEMORIES],
+		"Cristal leído (%d/%d) — busca más cristales azules" % [memories_read, TOTAL_MEMORIES],
 		Color(0.72, 0.88, 1.0), 1.6
 	)
 	_update_hud_status()
@@ -572,15 +693,45 @@ func _process(delta: float) -> void:
 		_event_timer = randf_range(20.0, 28.0)
 		_trigger_cave_echo()
 
-	for ed in enemies:
-		EnemyBehavior.tick(ed, player_pos, delta)
+	if not _boss_arena_active:
+		for ed in enemies:
+			EnemyBehavior.tick(ed, player_pos, delta)
 
 	_update_minimap()
 	_update_near_memory()
+	_update_near_seal()
+	_update_proximity_hints(delta)
+	_update_boss_hint(delta)
+
+
+func _update_boss_hint(delta: float) -> void:
+	_boss_hint_cd = maxf(0.0, _boss_hint_cd - delta)
+	if _boss_hint_cd > 0.0 or not boss_unlocked or boss_defeated:
+		return
+	if _is_player_near_boss():
+		_boss_hint_cd = 5.0
+		DialogueManager.show_corner_notice(
+			"¡Aquí! Pulsa [E] o [Q] para sanar al jefe.",
+			Color(0.9, 0.78, 1.0),
+			2.2
+		)
+
+
+func _update_proximity_hints(delta: float) -> void:
+	_hint_cooldown = maxf(0.0, _hint_cooldown - delta)
+	if _hint_cooldown > 0.0 or _transitioning:
+		return
+	if not _near_memory.is_empty() and not _near_memory.get("done", true):
+		_hint_cooldown = 5.0
+		DialogueManager.show_corner_notice("Cristal azul → pulsa [E]", Color(0.55, 0.88, 1.0), 2.0)
+		return
+	if not _near_seal.is_empty() and not _near_seal.get("done", true):
+		_hint_cooldown = 5.0
+		DialogueManager.show_corner_notice("Círculo dorado → pulsa [E] para encender", Color(0.95, 0.82, 0.40), 2.0)
 
 
 func _trigger_cave_echo() -> void:
-	if _transitioning or enemies.is_empty():
+	if _transitioning or _boss_arena_active or enemies.is_empty():
 		return
 	EnemyBehavior.trigger_surge(enemies, 3.5)
 	DialogueManager.show_corner_notice("Los ecos de la cueva despiertan — ¡emboscada!", Color(0.85, 0.72, 1.0), 2.5)
@@ -639,9 +790,8 @@ func _zone_complete() -> void:
 	GameManager.update_empathy(0.34)
 	GameManager.add_score(700)
 	_update_hud()
-	DialogueManager.show_corner_notice("¡Zona completada! Pasando al Río...", Color(0.92, 0.85, 0.45), 3.0)
 	var refl := StoryReflections.get_zone_complete(3)
 	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+700 pts", refl.accent, 3.5)
-	await get_tree().create_timer(3.5).timeout
-	await SceneTransition.change_scene("res://scenes/world/Zone4_Rio.tscn")
+		DialogueManager.show_reflection(refl.title, refl.body + "\n+700 pts", refl.accent, 2.5)
+		await get_tree().create_timer(2.5).timeout
+	await SceneTransition.play_bridge_and_change_scene(3, "res://scenes/world/Zone4_Rio.tscn")

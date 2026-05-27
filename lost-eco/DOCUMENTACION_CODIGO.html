@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>LOST ECO — Documentación del código</title>
+<style>
+@page { margin: 18mm 16mm; }
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.45;
+  color: #1a1a1a;
+  max-width: 100%;
+}
+h1 { color: #2c3e6b; border-bottom: 2px solid #c9a227; padding-bottom: 6px; font-size: 22pt; }
+h2 { color: #3d4f7c; margin-top: 1.2em; font-size: 14pt; }
+h3 { color: #555; font-size: 12pt; }
+code, pre { background: #f4f4f8; font-size: 9pt; }
+pre { padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10pt; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+th { background: #eef1f8; }
+blockquote { border-left: 4px solid #c9a227; margin-left: 0; padding-left: 12px; color: #444; }
+hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+</style>
+</head>
+<body>
+<h1 id="lost-eco-guia-del-codigo-godot-46">LOST ECO — Guía del código (Godot 4.6)</h1>
+<p>Documento para entender <strong>qué hace cada parte</strong> del proyecto sin ser programador experto.</p>
+<hr />
+<h2 id="1-que-es-este-juego">1. ¿Qué es este juego?</h2>
+<p><strong>Lost Eco</strong> es un juego 2D en Godot sobre <strong>bullying (acoso escolar)</strong>. Alex recorre zonas del bosque, recoge ecos de memoria, aprende mecánicas distintas en cada nivel y termina en un claro para hablar con Mateo.</p>
+<ul>
+<li><strong>Motor:</strong> Godot 4.6  </li>
+<li><strong>Resolución lógica:</strong> 320×180 (se escala a 1280×720 en ventana)  </li>
+<li><strong>Carpeta principal:</strong> <code>lost-eco/</code>  </li>
+<li><strong>Escena inicial:</strong> <code>scenes/menu.tscn</code></li>
+</ul>
+<hr />
+<h2 id="2-controles-del-jugador">2. Controles del jugador</h2>
+<table>
+<thead>
+<tr>
+<th>Tecla</th>
+<th>Acción en Godot</th>
+<th>Uso en el juego</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W/A/S/D o flechas</td>
+<td><code>move_*</code></td>
+<td>Mover a Alex</td>
+</tr>
+<tr>
+<td><strong>E</strong></td>
+<td><code>interact</code></td>
+<td>Interactuar (ecos, pilares, cristales, sellos, jefe)</td>
+</tr>
+<tr>
+<td><strong>J</strong></td>
+<td><code>attack</code></td>
+<td>Pulso de luz (empuja enemigos; gasta carga)</td>
+</tr>
+<tr>
+<td><strong>Q</strong></td>
+<td><code>drop_weapon</code></td>
+<td>Gesto de paz / soltar arma</td>
+</tr>
+<tr>
+<td><strong>ESC</strong></td>
+<td><code>pause</code></td>
+<td>Pausa (o cerrar intro con E/ESC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-estructura-de-carpetas">3. Estructura de carpetas</h2>
+<pre><code>lost-eco/
+├── autoloads/          ← Scripts globales (siempre activos)
+├── scenes/             ← Escenas .tscn (menú, zonas, Alex)
+│   ├── menu.tscn
+│   ├── world/          ← Zone1, Zone2, Zone3, Zone4, Clearing
+│   └── player/         ← alex.tscn
+├── scripts/
+│   ├── mapa/           ← Lógica de cada zona + minimapa + niebla
+│   ├── personaje/      ← Alex, animaciones, sprites
+│   ├── enemigos/       ← Sombras, IA, jefe espejo
+│   ├── puntuacion/     ← HUD, vidas, ecos
+│   ├── menu/           ← Menú principal y opciones
+│   └── cinematicas/    ← Efectos (shake, muerte, accesibilidad)
+├── assets/             ← Sprites, shaders (niebla, viñeta)
+└── project.godot       ← Configuración del proyecto
+</code></pre>
+<hr />
+<h2 id="4-autoloads-servicios-globales">4. Autoloads (servicios globales)</h2>
+<p>Son nodos que <strong>no se destruyen</strong> al cambiar de escena. Están en <code>project.godot</code> → <code>[autoload]</code>.</p>
+<h3 id="gamemanagergd"><code>GameManager.gd</code></h3>
+<ul>
+<li><strong>Vidas:</strong> <code>current_health</code> / <code>max_health</code> (3 por defecto)</li>
+<li><strong>Puntos:</strong> <code>score</code></li>
+<li><strong>Empatía:</strong> <code>empathy_level</code> (0 = agresivo, 1 = empático)</li>
+<li><strong>Jugador:</strong> <code>player</code> (referencia a Alex)</li>
+<li><strong>Pausa:</strong> menú ESC</li>
+<li><strong>GAME OVER:</strong> pantalla con “Seguir jugando” o “Salir al menú”</li>
+<li><strong><code>on_zone_completed()</code>:</strong> restaura vidas al pasar de nivel</li>
+</ul>
+<h3 id="dialoguemanagergd"><code>DialogueManager.gd</code></h3>
+<ul>
+<li>Mensajes en pantalla (esquina y centro)</li>
+<li><strong><code>show_zone_intro()</code>:</strong> cartel al empezar nivel (pasos numerados) → <strong>[E] o [ESC] Continuar</strong></li>
+<li><strong><code>ZoneMissionBriefs.gd</code>:</strong> textos de misión para zonas 1–4 (siempre al entrar, también tras cinemática)</li>
+<li><strong><code>show_corner_notice()</code>:</strong> avisos cortos abajo</li>
+<li><strong><code>show_reflection()</code>:</strong> textos de historia (bullying)</li>
+<li><strong><code>clear_all()</code>:</strong> borra mensajes al ir al menú</li>
+</ul>
+<h3 id="scenetransitiongd"><code>SceneTransition.gd</code></h3>
+<ul>
+<li>Fade negro entre escenas</li>
+<li>Orden: <strong>cinemática → fade out → cambio de escena → fade in</strong></li>
+<li><strong><code>change_scene(ruta)</code>:</strong> cambia de nivel limpiando diálogos</li>
+<li><strong><code>play_bridge_and_change_scene(zona, ruta)</code>:</strong> cinemática entre niveles + siguiente escena</li>
+</ul>
+<h3 id="zonecinematicdirectorgd"><code>ZoneCinematicDirector.gd</code></h3>
+<ul>
+<li>Cinemáticas a pantalla completa (intro + puentes entre zonas)</li>
+<li>Panel centrado, botón <strong>Continuar [E]</strong>, avance automático por diapositiva</li>
+<li>Saltar con <strong>[E]</strong>, <strong>ESC</strong> o <strong>J</strong></li>
+<li>Tras cinemática: sigue mostrando el <strong>intro completo</strong> del nivel (objetivos paso a paso)</li>
+<li>Claves: <code>intro_campaign</code>, <code>bridge_1_2</code>, <code>bridge_2_3</code>, <code>bridge_3_4</code>, <code>bridge_4_clearing</code></li>
+</ul>
+<h3 id="storyreflectionsgd"><code>StoryReflections.gd</code></h3>
+<ul>
+<li>Diccionario de textos: <code>zone1_echo_1</code>, <code>zone3_memory_2</code>, <code>zone2_complete</code>, etc.</li>
+<li><strong><code>get_echo_reflection(zona, n)</code></strong>, <strong><code>get_crystal_memory(n)</code></strong></li>
+</ul>
+<h3 id="questmanagergd"><code>QuestManager.gd</code></h3>
+<ul>
+<li>Progreso por zona: <code>zone1</code> … <code>zone4</code></li>
+<li><strong><code>advance_quest("zone2")</code></strong> al completar un nivel</li>
+</ul>
+<h3 id="settingsmanagergd"><code>SettingsManager.gd</code></h3>
+<ul>
+<li>Volumen, resolución, daltonismo, skin del personaje</li>
+<li><strong><code>CAMPAIGN_SCENES</code>:</strong> orden de la campaña</li>
+<li>Guarda en <code>user://settings.cfg</code></li>
+</ul>
+<h3 id="audiomanagergd-uisoundsgd"><code>AudioManager.gd</code> / <code>UISounds.gd</code></h3>
+<ul>
+<li>Música y efectos (daño, sanación, UI)</li>
+</ul>
+<h3 id="menustatemachinegd"><code>MenuStateMachine.gd</code></h3>
+<ul>
+<li>Estados del menú: principal, opciones, pausa</li>
+<li>Al empezar partida resetea vidas y puntos</li>
+</ul>
+<hr />
+<h2 id="5-flujo-del-juego-de-principio-a-fin">5. Flujo del juego (de principio a fin)</h2>
+<pre><code>Menú (menu.tscn)
+    ↓ Jugar
+Zona 1 — Laberinto (Zone1_Labyrinth.tscn)
+    ↓ 4 ecos + salida X
+Zona 2 — Pantano (Zone2_Swamp.tscn)
+    ↓ 3 pilares [E] + 3 ecos
+Zona 3 — Cueva (Zone3_Cave.tscn)
+    ↓ cristales + sellos + ecos + sanar jefe [E]/[Q]
+Zona 4 — Río (Zone4_Rio.tscn)
+    ↓ 3 ecos + salida
+Clearing (Clearing.tscn)
+    ↓ Diálogo final con Mateo
+</code></pre>
+<p>Cada zona es un <code>Node2D</code> con script en <code>scripts/mapa/ZoneX_....gd</code>.</p>
+<hr />
+<h2 id="6-el-personaje-alex">6. El personaje Alex</h2>
+<table>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Rol</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scenes/player/alex.tscn</code></td>
+<td>Escena: cuerpo, colisión, área de interacción</td>
+</tr>
+<tr>
+<td><code>scripts/personaje/Alex.gd</code></td>
+<td>Movimiento, daño, armas, gesto de paz [Q]</td>
+</tr>
+<tr>
+<td><code>scripts/personaje/GothicPlayerVisual.gd</code></td>
+<td>Sprite animado + luz alrededor</td>
+</tr>
+<tr>
+<td><code>scripts/personaje/CharacterArt.gd</code></td>
+<td>Carga PNG (disco o base64 embebido)</td>
+</tr>
+<tr>
+<td><code>scripts/personaje/PlayerAnimationFactory.gd</code></td>
+<td>Crea animaciones idle/run desde textura</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ciclo-de-vida-de-alex">Ciclo de vida de Alex</h3>
+<ol>
+<li>Al cargar la escena, Alex hace <code>_ready()</code> → <code>GameManager.player = self</code></li>
+<li>Se oculta el icono viejo de Godot y se muestra polígonos o sprite gótico</li>
+<li><code>_physics_process</code>: lee WASD, mueve con <code>move_and_slide()</code></li>
+<li><code>can_move = false</code> cuando hay intro, pausa o GAME OVER</li>
+</ol>
+<h3 id="peace_gesture-tecla-q"><code>peace_gesture()</code> (tecla Q)</h3>
+<ul>
+<li>Marca <code>has_weapon = false</code></li>
+<li>Muestra mensaje “Manos vacías — sin violencia”</li>
+<li>En Zona 3, la zona escucha esto y puede sanar al jefe si estás cerca</li>
+</ul>
+<hr />
+<h2 id="7-como-funcionan-las-zonas-mapa">7. Cómo funcionan las zonas (mapa)</h2>
+<p>Todas las zonas usan un <strong>MAP</strong> de texto: cada carácter es un tile de 16×16 píxeles.</p>
+<table>
+<thead>
+<tr>
+<th>Símbolo</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#</code></td>
+<td>Pared (colisión)</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>Suelo libre</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td>Spawn de Alex</td>
+</tr>
+<tr>
+<td><code>E</code></td>
+<td>Eco coleccionable (estrella)</td>
+</tr>
+<tr>
+<td><code>X</code></td>
+<td>Salida (Zonas 1, 2, 4)</td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>Pilar (solo Zona 2)</td>
+</tr>
+<tr>
+<td><code>B</code></td>
+<td>Jefe espejo (Zona 3)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="archivos-por-zona">Archivos por zona</h3>
+<table>
+<thead>
+<tr>
+<th>Zona</th>
+<th>Script</th>
+<th>Escena</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 Laberinto</td>
+<td><code>Zone1_Labyrinth.gd</code></td>
+<td><code>Zone1_Labyrinth.tscn</code></td>
+</tr>
+<tr>
+<td>2 Pantano</td>
+<td><code>Zone2_Swamp.gd</code></td>
+<td><code>Zone2_Swamp.tscn</code></td>
+</tr>
+<tr>
+<td>3 Cueva</td>
+<td><code>Zone3_Cave.gd</code></td>
+<td><code>Zone3_Cave.tscn</code></td>
+</tr>
+<tr>
+<td>4 Río</td>
+<td><code>Zone4_Rio.gd</code></td>
+<td><code>Zone4_Rio.tscn</code></td>
+</tr>
+<tr>
+<td>Claro</td>
+<td><code>Clearing.gd</code></td>
+<td><code>Clearing.tscn</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="que-hace-cada-zona-en-_ready">Qué hace cada zona en <code>_ready()</code></h3>
+<ol>
+<li>Genera mapa (<code>_generate_map</code>) — suelos, paredes, ecos</li>
+<li>Crea enemigos</li>
+<li>Crea HUD y minimapa (<code>ZoneUIBootstrap</code>)</li>
+<li><strong><code>call_deferred("_finish_player_setup")</code></strong> — coloca a Alex en <code>S</code> <strong>después</strong> de que exista</li>
+<li>Intro con <code>DialogueManager.show_zone_intro</code></li>
+<li>Atmósfera: <code>GothicAtmosphere</code> (niebla + viñeta)</li>
+</ol>
+<h3 id="mecanicas-por-zona">Mecánicas por zona</h3>
+<p><strong>Zona 1 — Laberinto</strong>
+- Recoger <strong>4 ecos</strong> → desbloquea salida <code>X</code>
+- Enemigos: sombras que quitan vida
+- <strong>[J]:</strong> pulso de luz (empuja enemigos)</p>
+<p><strong>Zona 2 — Pantano</strong>
+- <strong>3 pilares <code>P</code>:</strong> mantener <strong>[E]</strong> ~1.8 s cerca
+- <strong>3 ecos</strong>
+- Barro reduce velocidad
+- Salida cuando pilares + ecos completos</p>
+<p><strong>Zona 3 — Cueva</strong>
+- <strong>3 cristales azules:</strong> <strong>[E]</strong> → lee memoria
+- <strong>3 círculos dorados:</strong> <strong>[E]</strong> → enciende luz
+- <strong>3 ecos</strong> (estrellas)
+- <strong>Jefe <code>B</code>:</strong> al completar todo → cinemática <strong>Sala del Espejo</strong> (cámara, sombras se van, teleport cerca del jefe) → <strong>[E]</strong> o <strong>[Q]</strong> para sanar
+- Visual jefe: <code>MirrorBossVisual.gd</code> | enemigos: sprites (<code>susurrantes</code>)
+- Niebla más clara (<code>cave_bright</code> en <code>GothicAtmosphere</code>)</p>
+<p><strong>Zona 4 — Río</strong>
+- Agua lenta, <strong>3 ecos</strong>, salida <strong>X</strong></p>
+<hr />
+<h2 id="8-ui-en-pantalla">8. UI en pantalla</h2>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Archivo</th>
+<th>Qué muestra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HUD zona</td>
+<td><code>PremiumZoneHUD.gd</code></td>
+<td>VIDAS, objetivos, puntos, cargas LUZ</td>
+</tr>
+<tr>
+<td>Minimapa</td>
+<td><code>ZoneMinimap.gd</code></td>
+<td>Mapa pequeño; niebla se descubre al caminar</td>
+</tr>
+<tr>
+<td>Mensajes</td>
+<td><code>DialogueManager.gd</code></td>
+<td>Intro, avisos, reflexiones</td>
+</tr>
+<tr>
+<td>Pausa / Game Over</td>
+<td><code>GameManager.gd</code></td>
+<td>Paneles encima del juego</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Capas (CanvasLayer):</strong>
+- Niebla: ~88<br />
+- Viñeta: ~92<br />
+- HUD: 100<br />
+- Minimapa: 101<br />
+- Mensajes: 110<br />
+- Pausa: 120<br />
+- Game Over: 125  </p>
+<hr />
+<h2 id="9-enemigos">9. Enemigos</h2>
+<table>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EnemyBehavior.gd</code></td>
+<td>Patrulla, embestida, oleadas</td>
+</tr>
+<tr>
+<td><code>ShadowEnemyVisual.gd</code></td>
+<td>Dibuño rojo/ojos de la sombra</td>
+</tr>
+<tr>
+<td><code>MirrorGuardian.gd</code></td>
+<td>Jefe alternativo (escena separada; campaña usa polígono en Zone3)</td>
+</tr>
+</tbody>
+</table>
+<p>Al tocar al jugador: <code>GameManager.take_damage()</code> → pierde 1 vida → si llega a 0 → GAME OVER.</p>
+<hr />
+<h2 id="10-niebla-y-atmosfera">10. Niebla y atmósfera</h2>
+<p><strong><code>GothicAtmosphere.gd</code></strong>
+- Sigue la posición de Alex con un shader de niebla
+- Temas: <code>labyrinth</code>, <code>swamp</code>, <code>cave_bright</code>, <code>river</code>
+- <code>light_radius</code> = qué tan lejos ves (más alto = más visión)</p>
+<p><strong><code>GothicTilePainter.gd</code></strong>
+- Pinta suelos y paredes en <code>_draw()</code> de cada zona</p>
+<p><strong><code>FollowCamera.gd</code></strong>
+- Cámara sigue a Alex con zoom 2×</p>
+<hr />
+<h2 id="11-sprites-y-personajes">11. Sprites y personajes</h2>
+<ol>
+<li>PNG en <code>assets/sprites/</code> (alex.png, exploradora.png, enemigos…)</li>
+<li>Si OneDrive bloquea archivos → <code>CharacterSpritesData.gd</code> tiene imágenes en <strong>base64</strong></li>
+<li><code>CharacterArt.make_sprite("alex")</code> devuelve textura</li>
+<li>Si falla → Alex usa <strong>figura de polígonos</strong> (cuadrados de colores)</li>
+</ol>
+<hr />
+<h2 id="12-archivos-que-tocarias-segun-lo-que-quieras-cambiar">12. Archivos que tocarías según lo que quieras cambiar</h2>
+<table>
+<thead>
+<tr>
+<th>Quiero cambiar…</th>
+<th>Archivo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Textos de historia / ecos</td>
+<td><code>autoloads/StoryReflections.gd</code></td>
+</tr>
+<tr>
+<td>Mensaje al entrar a un nivel</td>
+<td>Script de la zona → <code>show_zone_intro(...)</code></td>
+</tr>
+<tr>
+<td>Vidas o GAME OVER</td>
+<td><code>autoloads/GameManager.gd</code></td>
+</tr>
+<tr>
+<td>Mapa Zona 1</td>
+<td><code>scripts/mapa/Zone1_Labyrinth.gd</code> → constante <code>MAP</code></td>
+</tr>
+<tr>
+<td>Posición de enemigos</td>
+<td><code>ENEMY_TILES</code> en cada ZoneX</td>
+</tr>
+<tr>
+<td>Teclas</td>
+<td><code>project.godot</code> → <code>[input]</code></td>
+</tr>
+<tr>
+<td>Orden de niveles</td>
+<td><code>SettingsManager.gd</code> → <code>CAMPAIGN_SCENES</code></td>
+</tr>
+<tr>
+<td>Brillo / niebla</td>
+<td><code>GothicAtmosphere.gd</code> o tema en <code>setup(..., "cave_bright")</code></td>
+</tr>
+<tr>
+<td>HUD (vidas, tamaño)</td>
+<td><code>scripts/puntuacion/PremiumZoneHUD.gd</code></td>
+</tr>
+<tr>
+<td>Sprites Alex</td>
+<td><code>assets/sprites/</code> + <code>CharacterArt.gd</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13-orden-de-ejecucion-importante-para-bugs">13. Orden de ejecución (importante para bugs)</h2>
+<p>Godot ejecuta <code>_ready()</code> <strong>del padre antes que el hijo</strong>.</p>
+<pre><code>Zone1_Labyrinth._ready()     ← A veces GameManager.player aún es null
+    └── Alex._ready()        ← Aquí se asigna GameManager.player
+</code></pre>
+<p>Por eso las zonas usan <strong><code>call_deferred("_finish_player_setup")</code></strong>: espera un frame, coloca a Alex en <code>S</code>, aplica niebla y HUD.</p>
+<hr />
+<h2 id="14-patrones-de-diseno-en-el-codigo">14. Patrones de diseño en el código</h2>
+<p>No hay un único patrón (como MVC puro). El proyecto mezcla varios, típicos en Godot:</p>
+<table>
+<thead>
+<tr>
+<th>Patrón</th>
+<th>Dónde está</th>
+<th>Para qué sirve aquí</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Singleton (Autoload)</strong></td>
+<td><code>GameManager</code>, <code>DialogueManager</code>, <code>SceneTransition</code>, <code>ZoneCinematicDirector</code>, <code>QuestManager</code>, …</td>
+<td>Un solo servicio global accesible desde cualquier escena</td>
+</tr>
+<tr>
+<td><strong>State</strong></td>
+<td><code>MenuStateMachine</code> + <code>scripts/menu/states/*.gd</code></td>
+<td>Menú principal, opciones y pausa como estados intercambiables</td>
+</tr>
+<tr>
+<td><strong>Observer (señales)</strong></td>
+<td><code>GameManager.health_changed</code>, <code>Alex.action_performed</code>, <code>QuestManager</code></td>
+<td>La UI y las zonas reaccionan sin acoplarse al jugador</td>
+</tr>
+<tr>
+<td><strong>Bootstrap / Factory</strong></td>
+<td><code>ZoneUIBootstrap</code>, <code>ZoneVisualBootstrap</code>, <code>PlayerAnimationFactory</code>, <code>EnemyBehavior</code></td>
+<td>Crear HUD, colocar al jugador, animaciones e IA sin duplicar código en cada zona</td>
+</tr>
+<tr>
+<td><strong>Data-driven</strong></td>
+<td><code>CINEMATICS</code> en <code>ZoneCinematicDirector</code>, <code>StoryReflections</code>, cadenas <code>MAP</code> en cada zona</td>
+<td>Contenido (textos, mapas, diapositivas) separado de la lógica</td>
+</tr>
+<tr>
+<td><strong>Strategy (ligero)</strong></td>
+<td><code>GothicAtmosphere</code> (temas por zona), <code>EnemyBehavior</code> (patrulla, emboscada)</td>
+<td>Comportamiento intercambiable según contexto</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Patrón principal del menú:</strong> <strong>State</strong> — el comentario en <code>MenuStateMachine.gd</code> lo documenta explícitamente.</p>
+<p><strong>Patrón principal del juego en marcha:</strong> <strong>Singleton + Observer</strong> — autoloads guardan estado y emiten señales; las escenas de zona escuchan y actualizan HUD/mapa.</p>
+<p>Las zonas (<code>Zone1_Labyrinth.gd</code>, etc.) son scripts <strong>monolíticos por nivel</strong> (mapa + mecánicas + victoria en un archivo), no un MVC estricto.</p>
+<hr />
+<h2 id="15-diagrama-simplificado">15. Diagrama simplificado</h2>
+<pre><code class="language-mermaid">flowchart TB
+    subgraph Autoloads
+        GM[GameManager]
+        DM[DialogueManager]
+        ST[SceneTransition]
+        SR[StoryReflections]
+    end
+
+    subgraph Zona
+        Z[ZoneX script]
+        MAP[MAP texto]
+        HUD[PremiumZoneHUD]
+        MM[ZoneMinimap]
+        ATM[GothicAtmosphere]
+    end
+
+    Alex[Alex CharacterBody2D]
+
+    Menu --&gt; ST --&gt; Z
+    Z --&gt; MAP
+    Z --&gt; HUD
+    Z --&gt; MM
+    Z --&gt; ATM
+    Alex --&gt; GM
+    Z --&gt; Alex
+    DM --&gt; HUD
+    GM --&gt; HUD
+</code></pre>
+<hr />
+<h2 id="16-codigo-legacy-no-usar-para-la-campana-principal">16. Código legacy (no usar para la campaña principal)</h2>
+<p>En <code>scripts/systems/</code> y <code>scripts/core/</code> hay versiones antiguas (pantano procedural, <code>PlayerController2D</code>). La campaña actual usa <strong><code>scripts/mapa/</code></strong> y <strong><code>scenes/world/</code></strong>.</p>
+<hr />
+<h2 id="17-como-abrir-esta-documentacion">17. Cómo abrir esta documentación</h2>
+<ul>
+<li>En el explorador de archivos del repo:<br />
+<code>lost-eco/DOCUMENTACION_CODIGO.md</code></li>
+<li>En Cursor/VS Code: clic en el archivo para leerlo con formato</li>
+<li>Puedes exportarlo a PDF desde el visor de Markdown si lo necesitas para clase o entrega</li>
+</ul>
+<hr />
+<p><em>Última actualización: campaña Zonas 1–4 + Clearing, cinemáticas, patrones de diseño documentados, HUD, GAME OVER.</em></p>
+</body>
+</html>

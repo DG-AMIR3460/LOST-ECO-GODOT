@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>SUSTENTACION LOST ECO</title>
+<style>
+@page { margin: 18mm 16mm; }
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.45;
+  color: #1a1a1a;
+  max-width: 100%;
+}
+h1 { color: #2c3e6b; border-bottom: 2px solid #c9a227; padding-bottom: 6px; font-size: 22pt; }
+h2 { color: #3d4f7c; margin-top: 1.2em; font-size: 14pt; page-break-after: avoid; }
+h3 { color: #555; font-size: 12pt; page-break-after: avoid; }
+code, pre { background: #f4f4f8; font-size: 9pt; }
+pre { padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10pt; page-break-inside: avoid; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+th { background: #eef1f8; }
+blockquote { border-left: 4px solid #c9a227; margin-left: 0; padding-left: 12px; color: #444; font-style: italic; }
+hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+ul, ol { margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1 id="lost-eco-guia-de-sustentacion-y-documentacion-tecnica">LOST ECO — Guía de sustentación y documentación técnica</h1>
+<p><strong>Proyecto:</strong> Lost Eco (videojuego 2D educativo)<br />
+<strong>Motor:</strong> Godot Engine 4.6<br />
+<strong>Tema central:</strong> acoso escolar (bullying) y resolución no violenta  </p>
+<hr />
+<h2 id="indice">Índice</h2>
+<ol>
+<li><a href="#1-qué-decir-en-la-sustentación-guion">Qué decir en la sustentación (guion)</a></li>
+<li><a href="#2-requerimientos-del-proyecto">Requerimientos del proyecto</a></li>
+<li><a href="#3-descripción-del-juego">Descripción del juego</a></li>
+<li><a href="#4-flujo-de-la-campaña">Flujo de la campaña</a></li>
+<li><a href="#5-mecánicas-por-nivel">Mecánicas por nivel</a></li>
+<li><a href="#6-arquitectura-en-godot">Arquitectura en Godot</a></li>
+<li><a href="#7-cómo-funciona-el-código">Cómo funciona el código</a></li>
+<li><a href="#8-patrones-de-diseño">Patrones de diseño</a></li>
+<li><a href="#9-demostración-sugerida">Demostración sugerida</a></li>
+<li><a href="#10-preguntas-frecuentes-del-jurado">Preguntas frecuentes del jurado</a></li>
+</ol>
+<hr />
+<h2 id="1-que-decir-en-la-sustentacion-guion">1. Qué decir en la sustentación (guion)</h2>
+<h3 id="apertura-12-minutos">Apertura (1–2 minutos)</h3>
+<blockquote>
+<p>«Buenos días/tardes. Presentamos <strong>Lost Eco</strong>, un videojuego 2D desarrollado en <strong>Godot 4.6</strong> cuyo objetivo es sensibilizar sobre el <strong>acoso escolar</strong> a través de la experiencia de juego, no de un discurso directo.</p>
+<p>El protagonista es <strong>Alex</strong>, un adolescente que recorre un bosque simbólico. Cada zona representa una etapa emocional: el laberinto de las palabras, el pantano de la paciencia, la cueva del espejo y el río hacia la reconciliación. Al final llega al <strong>Claro</strong>, donde puede hablar con <strong>Mateo</strong>.</p>
+<p>La premisa pedagógica es clara: <strong>no se gana peleando</strong>, sino escuchando, completando objetivos y, en el clímax, <strong>sanando al jefe del espejo</strong> con empatía ([E] o gesto de paz [Q]), no con violencia.»</p>
+</blockquote>
+<h3 id="problema-y-justificacion-1-minuto">Problema y justificación (1 minuto)</h3>
+<blockquote>
+<p>«El bullying afecta la autoestima, el rendimiento y la salud mental. Muchos materiales son folletos o charlas pasivas. Nosotros proponemos un <strong>juego corto, accesible y memorable</strong>, donde el jugador vive las consecuencias del acoso (sombras que dañan, mensajes de reflexión) y practica alternativas: pulso de luz defensivo, paciencia en el pantano, lectura de memorias en la cueva.»</p>
+</blockquote>
+<h3 id="requerimientos-cumplidos-12-minutos">Requerimientos cumplidos (1–2 minutos)</h3>
+<blockquote>
+<p>«Cumplimos requerimientos <strong>funcionales</strong>: menú, cuatro zonas jugables, HUD con vidas y objetivos, pausa, game over, transiciones entre niveles, textos narrativos y cinemáticas.</p>
+<p>En <strong>técnicos</strong>: motor Godot 4.6, resolución pixel-art 320×180 escalada a 1280×720, scripts en GDScript, arquitectura con autoloads (servicios globales) y escenas por nivel.</p>
+<p>En <strong>no funcionales</strong>: mensajes claros al entrar a cada zona (<code>ZoneMissionBriefs</code>), accesibilidad parcial (daltonismo en opciones), y código organizado por carpetas (<code>mapa</code>, <code>personaje</code>, <code>enemigos</code>, <code>autoloads</code>).»</p>
+</blockquote>
+<h3 id="demostracion-en-vivo-35-minutos">Demostración en vivo (3–5 minutos)</h3>
+<p>Seguir el orden de la <a href="#9-demostración-sugerida">sección 9</a>. Mientras juegas, comenta:</p>
+<ul>
+<li>«Aquí el jugador ve la <strong>misión</strong> con pasos numerados — pulsa E para continuar.»</li>
+<li>«Las <strong>sombras</strong> quitan vida; el <strong>pulso [J]</strong> empuja sin matar.»</li>
+<li>«En el pantano hay que <strong>mantener E</strong> en los pilares — mecánica distinta al laberinto.»</li>
+<li>«En la cueva, cristales, sellos y ecos desbloquean la <strong>Sala del Espejo</strong> y el jefe se sana sin atacar.»</li>
+</ul>
+<h3 id="arquitectura-y-codigo-23-minutos">Arquitectura y código (2–3 minutos)</h3>
+<blockquote>
+<p>«Godot organiza el proyecto en <strong>escenas</strong> (.tscn) y <strong>scripts</strong> (.gd). Usamos <strong>autoloads</strong> — singletons — para vidas, diálogos y cambio de escena, así no duplicamos lógica en cada nivel.</p>
+<p>Cada zona tiene un mapa en <strong>texto</strong> (matriz de caracteres): <code>#</code> pared, <code>E</code> eco, <code>S</code> inicio. Eso es <strong>data-driven</strong>: cambiar el nivel sin redibujar en el editor.</p>
+<p>Aplicamos patrones reconocibles: <strong>State</strong> en el menú, <strong>Observer</strong> con señales (<code>health_changed</code>), <strong>Factory/Bootstrap</strong> para crear HUD y enemigos. No es MVC puro; es el estilo habitual en Godot: escenas con script monolítico por zona más servicios globales.»</p>
+</blockquote>
+<h3 id="cierre-30-segundos">Cierre (30 segundos)</h3>
+<blockquote>
+<p>«En resumen: Lost Eco es un juego con narrativa coherente, mecánicas variadas por nivel, código modular en Godot y un mensaje final de <strong>empatía y diálogo</strong>. Quedamos atentos a sus preguntas. Gracias.»</p>
+</blockquote>
+<hr />
+<h2 id="2-requerimientos-del-proyecto">2. Requerimientos del proyecto</h2>
+<h3 id="21-requerimientos-funcionales-rf">2.1 Requerimientos funcionales (RF)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requerimiento</th>
+<th>Implementación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RF-01</td>
+<td>Menú principal con Jugar, Opciones y Salir</td>
+<td><code>scenes/menu.tscn</code>, <code>MenuStateMachine.gd</code></td>
+</tr>
+<tr>
+<td>RF-02</td>
+<td>Campaña de 4 zonas + nivel final (Claro)</td>
+<td><code>Zone1</code>–<code>Zone4</code>, <code>Clearing.tscn</code></td>
+</tr>
+<tr>
+<td>RF-03</td>
+<td>Control del personaje Alex (movimiento)</td>
+<td><code>Alex.gd</code>, acciones <code>move_*</code> en <code>project.godot</code></td>
+</tr>
+<tr>
+<td>RF-04</td>
+<td>Interacción con objetos ([E])</td>
+<td>Ecos, pilares, cristales, sellos, jefe</td>
+</tr>
+<tr>
+<td>RF-05</td>
+<td>Sistema de vidas (3) y game over</td>
+<td><code>GameManager.gd</code></td>
+</tr>
+<tr>
+<td>RF-06</td>
+<td>Puntuación y progreso por zona</td>
+<td><code>score</code>, <code>QuestManager.gd</code></td>
+</tr>
+<tr>
+<td>RF-07</td>
+<td>HUD: vidas, objetivo, cargas de luz</td>
+<td><code>PremiumZoneHUD.gd</code></td>
+</tr>
+<tr>
+<td>RF-08</td>
+<td>Minimapa con niebla de exploración</td>
+<td><code>ZoneMinimap.gd</code></td>
+</tr>
+<tr>
+<td>RF-09</td>
+<td>Enemigos que dañan al jugador</td>
+<td><code>ShadowEnemyVisual</code>, <code>EnemyBehavior</code></td>
+</tr>
+<tr>
+<td>RF-10</td>
+<td>Pulso de luz defensivo ([J])</td>
+<td>Lógica en cada <code>ZoneX_*.gd</code></td>
+</tr>
+<tr>
+<td>RF-11</td>
+<td>Gesto de paz / sin arma ([Q])</td>
+<td><code>Alex.peace_gesture()</code>, relevante en Zona 3</td>
+</tr>
+<tr>
+<td>RF-12</td>
+<td>Textos narrativos (bullying)</td>
+<td><code>StoryReflections.gd</code>, <code>DialogueManager</code></td>
+</tr>
+<tr>
+<td>RF-13</td>
+<td>Intro de misión al entrar a cada zona</td>
+<td><code>ZoneMissionBriefs.gd</code></td>
+</tr>
+<tr>
+<td>RF-14</td>
+<td>Cinemáticas entre menú y niveles</td>
+<td><code>ZoneCinematicDirector.gd</code>, <code>SceneTransition.gd</code></td>
+</tr>
+<tr>
+<td>RF-15</td>
+<td>Pausa con ESC</td>
+<td><code>GameManager.open_pause()</code></td>
+</tr>
+<tr>
+<td>RF-16</td>
+<td>Transición suave entre escenas</td>
+<td>Fade en <code>SceneTransition.gd</code></td>
+</tr>
+<tr>
+<td>RF-17</td>
+<td>Opciones (audio, resolución, daltonismo)</td>
+<td><code>SettingsManager.gd</code></td>
+</tr>
+<tr>
+<td>RF-18</td>
+<td>Restaurar vidas al completar zona</td>
+<td><code>GameManager.on_zone_completed()</code></td>
+</tr>
+<tr>
+<td>RF-19</td>
+<td>Jefe final sanable sin violencia</td>
+<td><code>Zone3_Cave.gd</code>, <code>MirrorBossVisual.gd</code></td>
+</tr>
+<tr>
+<td>RF-20</td>
+<td>Diálogo final con Mateo</td>
+<td><code>Clearing.gd</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-requerimientos-no-funcionales-rnf">2.2 Requerimientos no funcionales (RNF)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requerimiento</th>
+<th>Detalle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RNF-01</td>
+<td>Rendimiento en PC modesta</td>
+<td>Pixel art 320×180, pocos nodos por tile</td>
+</tr>
+<tr>
+<td>RNF-02</td>
+<td>Legibilidad de UI</td>
+<td>HUD compacto, intros con pasos numerados</td>
+</tr>
+<tr>
+<td>RNF-03</td>
+<td>Mantenibilidad</td>
+<td>Carpetas por dominio; autoloads desacoplados</td>
+</tr>
+<tr>
+<td>RNF-04</td>
+<td>Portabilidad del motor</td>
+<td>Exportable desde Godot 4.6 (Windows principal)</td>
+</tr>
+<tr>
+<td>RNF-05</td>
+<td>Coherencia narrativa</td>
+<td>Mismo tono en reflexiones y cinemáticas</td>
+</tr>
+<tr>
+<td>RNF-06</td>
+<td>Variación de gameplay</td>
+<td>Mecánica distinta en cada zona (no solo “recoger X”)</td>
+</tr>
+<tr>
+<td>RNF-07</td>
+<td>Persistencia de ajustes</td>
+<td><code>user://settings.cfg</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-requerimientos-tecnicos-rt">2.3 Requerimientos técnicos (RT)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requerimiento</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RT-01</td>
+<td>Motor</td>
+<td>Godot 4.6</td>
+</tr>
+<tr>
+<td>RT-02</td>
+<td>Lenguaje</td>
+<td>GDScript</td>
+</tr>
+<tr>
+<td>RT-03</td>
+<td>Resolución base</td>
+<td>320 × 180</td>
+</tr>
+<tr>
+<td>RT-04</td>
+<td>Ventana</td>
+<td>1280 × 720 (stretch <code>canvas_items</code>, aspect <code>expand</code>)</td>
+</tr>
+<tr>
+<td>RT-05</td>
+<td>Escena inicial</td>
+<td><code>res://scenes/menu.tscn</code></td>
+</tr>
+<tr>
+<td>RT-06</td>
+<td>Autoloads globales</td>
+<td>GameManager, DialogueManager, SceneTransition, etc.</td>
+</tr>
+<tr>
+<td>RT-07</td>
+<td>Control</td>
+<td>Teclado (WASD, E, J, Q, ESC)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-descripcion-del-juego">3. Descripción del juego</h2>
+<h3 id="31-genero-y-publico">3.1 Género y público</h3>
+<ul>
+<li><strong>Género:</strong> aventura 2D top-down, exploración ligera, narrativa educativa.  </li>
+<li><strong>Público:</strong> adolescentes y público general en contextos escolares o de sensibilización.  </li>
+<li><strong>Duración estimada:</strong> 25–40 minutos la campaña completa.</li>
+</ul>
+<h3 id="32-historia-y-simbolismo">3.2 Historia y simbolismo</h3>
+<table>
+<thead>
+<tr>
+<th>Zona</th>
+<th>Nombre</th>
+<th>Simbolismo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Laberinto de Palabras</td>
+<td>Rumores, insultos, laberinto mental</td>
+</tr>
+<tr>
+<td>2</td>
+<td>El Pantano</td>
+<td>Lentitud, agotamiento, paciencia para avanzar</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Cueva del Espejo</td>
+<td>Autocrítica, culpa, reflejo del propio comportamiento</td>
+</tr>
+<tr>
+<td>4</td>
+<td>El Río</td>
+<td>Fluir hacia el cambio, resistencia del entorno</td>
+</tr>
+<tr>
+<td>Final</td>
+<td>El Claro</td>
+<td>Reencuentro honesto con Mateo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>La Voz</strong> (narrador en cinemáticas) guía a Alex sin ser un personaje visible en mapa.</p>
+<h3 id="33-sistemas-principales">3.3 Sistemas principales</h3>
+<ul>
+<li><strong>Ecos de luz:</strong> coleccionables que abren salidas y dan puntos.  </li>
+<li><strong>Empatía:</strong> barra lógica (<code>empathy_level</code> en <code>GameManager</code>); sube al sanar al jefe y en momentos narrativos.  </li>
+<li><strong>Sombras del acoso:</strong> enemigos que representan hostigamiento; dañan pero pueden empujarse con el pulso.  </li>
+<li><strong>Sin violencia obligatoria:</strong> el final exige acercarse al jefe con manos vacías ([Q]) o interactuar ([E]).</li>
+</ul>
+<h3 id="34-controles">3.4 Controles</h3>
+<table>
+<thead>
+<tr>
+<th>Tecla</th>
+<th>Acción</th>
+<th>Uso pedagógico</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WASD / Flechas</td>
+<td>Mover</td>
+<td>Exploración</td>
+</tr>
+<tr>
+<td>E</td>
+<td>Interactuar</td>
+<td>Objetivos, sanar jefe</td>
+</tr>
+<tr>
+<td>J</td>
+<td>Pulso de luz</td>
+<td>Defensa sin daño letal</td>
+</tr>
+<tr>
+<td>Q</td>
+<td>Gesto de paz</td>
+<td>Renuncia explícita a la violencia</td>
+</tr>
+<tr>
+<td>ESC</td>
+<td>Pausa</td>
+<td>Control del ritmo</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-flujo-de-la-campana">4. Flujo de la campaña</h2>
+<pre><code>MENÚ
+  │  [Jugar] → cinemática intro_campaign
+  ▼
+ZONA 1 — Laberinto (4 ecos → salida X)
+  │  cinemática bridge_1_2
+  ▼
+ZONA 2 — Pantano (3 pilares + 3 ecos → salida X)
+  │  cinemática bridge_2_3
+  ▼
+ZONA 3 — Cueva (cristales + sellos + ecos → jefe → sanar)
+  │  cinemática bridge_3_4
+  ▼
+ZONA 4 — Río (3 ecos → salida X)
+  │  cinemática bridge_4_clearing
+  ▼
+CLARO — Diálogo con Mateo → fin
+</code></pre>
+<p>Cada transición pasa por <code>SceneTransition</code>: cinemática (opcional) → fade negro → <code>change_scene_to_file</code> → fade in.</p>
+<hr />
+<h2 id="5-mecanicas-por-nivel">5. Mecánicas por nivel</h2>
+<h3 id="zona-1-laberinto-de-palabras">Zona 1 — Laberinto de Palabras</h3>
+<ul>
+<li><strong>Meta:</strong> 4 ecos de luz.  </li>
+<li><strong>Mecánica única:</strong> oleadas de enemigos más rápidos tras recoger ecos.  </li>
+<li><strong>Salida:</strong> tile <code>X</code> abajo a la derecha cuando <code>echoes_collected == 4</code>.  </li>
+<li><strong>Archivos:</strong> <code>Zone1_Labyrinth.gd</code>, <code>Zone1_Labyrinth.tscn</code>.</li>
+</ul>
+<h3 id="zona-2-el-pantano">Zona 2 — El Pantano</h3>
+<ul>
+<li><strong>Meta:</strong> 3 pilares + 3 ecos.  </li>
+<li><strong>Mecánica única:</strong> mantener <strong>[E]</strong> cerca del pilar (<code>PILLAR_HOLD_TIME</code>); barro reduce velocidad de Alex.  </li>
+<li><strong>Enemigos:</strong> color magenta/rosa para contrastar con el barro verde.  </li>
+<li><strong>Archivos:</strong> <code>Zone2_Swamp.gd</code>.</li>
+</ul>
+<h3 id="zona-3-cueva-del-espejo">Zona 3 — Cueva del Espejo</h3>
+<ul>
+<li><strong>Meta:</strong> 3 cristales azules + 3 sellos dorados + 3 ecos + sanar jefe.  </li>
+<li><strong>Mecánica única:</strong> lectura de memorias, encendido de sellos, <strong>Sala del Espejo</strong> al completar requisitos.  </li>
+<li><strong>Jefe:</strong> <code>MirrorBossVisual.gd</code>; sanación con [E]/[Q] cerca del área del jefe.  </li>
+<li><strong>Archivos:</strong> <code>Zone3_Cave.gd</code>, <code>MirrorBossVisual.gd</code>.</li>
+</ul>
+<h3 id="zona-4-el-rio">Zona 4 — El Río</h3>
+<ul>
+<li><strong>Meta:</strong> 3 ecos.  </li>
+<li><strong>Mecánica única:</strong> agua que frena el movimiento.  </li>
+<li><strong>Archivos:</strong> <code>Zone4_Rio.gd</code>.</li>
+</ul>
+<h3 id="el-claro">El Claro</h3>
+<ul>
+<li>Diálogo ramificado o lineal con Mateo (según implementación en <code>Clearing.gd</code>).  </li>
+<li>Cierre narrativo de la campaña.</li>
+</ul>
+<hr />
+<h2 id="6-arquitectura-en-godot">6. Arquitectura en Godot</h2>
+<h3 id="61-conceptos-basicos-de-godot-para-explicar-al-jurado">6.1 Conceptos básicos de Godot (para explicar al jurado)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Qué es</th>
+<th>En Lost Eco</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nodo</strong></td>
+<td>Unidad básica del árbol de escena</td>
+<td>Alex, paredes, HUD</td>
+</tr>
+<tr>
+<td><strong>Escena (.tscn)</strong></td>
+<td>Árbol de nodos guardado</td>
+<td><code>menu.tscn</code>, <code>Zone1_Labyrinth.tscn</code></td>
+</tr>
+<tr>
+<td><strong>Script (.gd)</strong></td>
+<td>Comportamiento en GDScript</td>
+<td><code>Alex.gd</code>, <code>Zone1_Labyrinth.gd</code></td>
+</tr>
+<tr>
+<td><strong>Autoload</strong></td>
+<td>Nodo global siempre cargado</td>
+<td><code>GameManager</code>, <code>DialogueManager</code></td>
+</tr>
+<tr>
+<td><strong>Señal</strong></td>
+<td>Evento entre nodos</td>
+<td><code>health_changed</code>, <code>action_performed</code></td>
+</tr>
+<tr>
+<td><strong>CanvasLayer</strong></td>
+<td>Capa de UI independiente</td>
+<td>HUD, mensajes, pausa</td>
+</tr>
+<tr>
+<td><strong>CharacterBody2D</strong></td>
+<td>Cuerpo con física 2D</td>
+<td>Alex</td>
+</tr>
+<tr>
+<td><strong>Area2D</strong></td>
+<td>Detección de solapamiento</td>
+<td>Ecos, daño de enemigos</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-estructura-del-repositorio">6.2 Estructura del repositorio</h3>
+<pre><code>lost-eco/
+├── autoloads/       → Servicios globales (singletons)
+├── scenes/          → Menú, zonas, jugador
+├── scripts/
+│   ├── mapa/        → Lógica de niveles, cámara, niebla
+│   ├── personaje/   → Alex, sprites, visual gótico
+│   ├── enemigos/    → IA y apariencia de sombras
+│   ├── puntuacion/  → HUD, iconos de vida
+│   └── menu/        → Estados del menú
+├── assets/          → Sprites, shaders
+└── project.godot    → Configuración e input
+</code></pre>
+<h3 id="63-autoloads-corazon-del-sistema-global">6.3 Autoloads (corazón del sistema global)</h3>
+<table>
+<thead>
+<tr>
+<th>Autoload</th>
+<th>Responsabilidad</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GameManager</code></td>
+<td>Vidas, puntos, empatía, pausa, game over, referencia a <code>player</code></td>
+</tr>
+<tr>
+<td><code>DialogueManager</code></td>
+<td>Intros, avisos, reflexiones en pantalla</td>
+</tr>
+<tr>
+<td><code>SceneTransition</code></td>
+<td>Fade y cambio de escena</td>
+</tr>
+<tr>
+<td><code>ZoneCinematicDirector</code></td>
+<td>Diapositivas entre niveles</td>
+</tr>
+<tr>
+<td><code>StoryReflections</code></td>
+<td>Textos narrativos por id</td>
+</tr>
+<tr>
+<td><code>QuestManager</code></td>
+<td>Progreso <code>zone1</code>…<code>zone4</code></td>
+</tr>
+<tr>
+<td><code>SettingsManager</code></td>
+<td>Opciones y orden de campaña</td>
+</tr>
+<tr>
+<td><code>MenuStateMachine</code></td>
+<td>Estados del menú (patrón State)</td>
+</tr>
+<tr>
+<td><code>AudioManager</code> / <code>UISounds</code></td>
+<td>Audio</td>
+</tr>
+</tbody>
+</table>
+<p>Registrados en <code>project.godot</code> → sección <code>[autoload]</code>.</p>
+<h3 id="64-capas-visuales-orden-z">6.4 Capas visuales (orden Z)</h3>
+<table>
+<thead>
+<tr>
+<th>Capa</th>
+<th>Aprox. layer</th>
+<th>Contenido</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mundo</td>
+<td>0</td>
+<td>Mapa, Alex, enemigos</td>
+</tr>
+<tr>
+<td>Niebla</td>
+<td>88</td>
+<td>Shader sigue al jugador</td>
+</tr>
+<tr>
+<td>Viñeta</td>
+<td>92</td>
+<td>Oscurecimiento bordes</td>
+</tr>
+<tr>
+<td>HUD</td>
+<td>100</td>
+<td>Vidas, objetivos</td>
+</tr>
+<tr>
+<td>Minimapa</td>
+<td>101</td>
+<td>Mapa pequeño</td>
+</tr>
+<tr>
+<td>Mensajes</td>
+<td>110</td>
+<td>Diálogos</td>
+</tr>
+<tr>
+<td>Cinemática</td>
+<td>128</td>
+<td>Entre niveles</td>
+</tr>
+<tr>
+<td>Pausa / Game Over</td>
+<td>120–125</td>
+<td>Bloqueo de juego</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-como-funciona-el-codigo">7. Cómo funciona el código</h2>
+<h3 id="71-ciclo-de-vida-al-iniciar-el-juego">7.1 Ciclo de vida al iniciar el juego</h3>
+<ol>
+<li>Godot carga <code>menu.tscn</code> (configurado en <code>project.godot</code>).  </li>
+<li>El jugador pulsa <strong>Jugar</strong> → <code>MenuStateMachine.transition_to_game()</code>.  </li>
+<li>Se resetean vidas y puntos; <code>SceneTransition.change_scene_with_cinematic("intro_campaign", Zone1)</code>.  </li>
+<li>Tras la cinemática, fade y carga <code>Zone1_Labyrinth.tscn</code>.  </li>
+<li><code>Zone1_Labyrinth._ready()</code> genera mapa, enemigos, HUD; <code>ZoneMissionBriefs.show_for_zone(1)</code> explica la misión.  </li>
+<li><code>Alex._ready()</code> asigna <code>GameManager.player = self</code>.  </li>
+<li><code>call_deferred("_finish_player_setup")</code> coloca a Alex en la celda <code>S</code> del MAP.</li>
+</ol>
+<p><strong>Por qué <code>call_deferred</code>:</strong> el padre (zona) ejecuta <code>_ready</code> antes que el hijo (Alex). Si colocamos al jugador en el mismo frame, a veces <code>GameManager.player</code> aún es <code>null</code>.</p>
+<h3 id="72-como-se-construye-un-mapa-data-driven">7.2 Cómo se construye un mapa (data-driven)</h3>
+<p>En cada <code>ZoneX_*.gd</code> hay una constante <code>MAP</code>: array de strings. Cada carácter = un tile de 16×16 px.</p>
+<pre><code class="language-gdscript"># Ejemplo simplificado
+for y in MAP.size():
+    for x in MAP[y].length():
+        match MAP[y][x]:
+            &quot;#&quot;: crear pared con StaticBody2D
+            &quot;E&quot;: spawn eco
+            &quot;S&quot;: punto de aparición de Alex
+            &quot;.&quot;: suelo
+</code></pre>
+<p>Ventaja para la sustentación: <em>«El diseño de nivel es editable como texto; no hace falta recompilar arte para mover un eco.»</em></p>
+<h3 id="73-alex-movimiento-y-estados">7.3 Alex — movimiento y estados</h3>
+<p>Archivo: <code>scripts/personaje/Alex.gd</code></p>
+<ul>
+<li><code>_physics_process</code>: lee <code>Input.get_vector</code> con acciones <code>move_left</code>, <code>move_right</code>, etc.  </li>
+<li><code>move_and_slide()</code> aplica velocidad.  </li>
+<li><code>can_move</code>: si es <code>false</code>, no se mueve (intro, pausa, cinemática, game over).  </li>
+<li><code>take_hit(from_pos)</code>: retroceso y feedback al recibir daño.  </li>
+<li><code>peace_gesture()</code>: emite señal <code>action_performed("drop_weapon")</code> para que Zone3 reaccione.</li>
+</ul>
+<h3 id="74-dano-y-game-over">7.4 Daño y game over</h3>
+<ol>
+<li><code>Area2D</code> del enemigo detecta cuerpo del jugador (<code>body_entered</code>).  </li>
+<li>La zona llama <code>GameManager.take_damage()</code>.  </li>
+<li><code>current_health</code> baja; se emite <code>health_changed</code>.  </li>
+<li>El HUD actualiza corazones.  </li>
+<li>Si <code>current_health == 0</code> → pantalla GAME OVER con reintentar o menú.</li>
+</ol>
+<h3 id="75-dialogos-e-intro-de-mision">7.5 Diálogos e intro de misión</h3>
+<ul>
+<li><code>DialogueManager.show_zone_intro(título, objetivo, hint, color)</code> crea panel centrado; bloquea movimiento hasta [E]/ESC.  </li>
+<li><code>ZoneMissionBriefs.show_for_zone(n)</code> centraliza los textos pedagógicos por zona.  </li>
+<li><code>show_corner_notice</code> para avisos cortos sin bloquear tanto.</li>
+</ul>
+<h3 id="76-transiciones-y-cinematicas">7.6 Transiciones y cinemáticas</h3>
+<p><code>SceneTransition._run_scene_change</code>:</p>
+<ol>
+<li>Si hay <code>cinematic_id</code> → <code>await ZoneCinematicDirector.play(id)</code>.  </li>
+<li><code>fade_out</code> → pantalla negra.  </li>
+<li><code>get_tree().change_scene_to_file(ruta)</code>.  </li>
+<li><code>fade_in</code>.</li>
+</ol>
+<p><code>ZoneCinematicDirector</code> lee diapositivas del diccionario <code>CINEMATICS</code> (título, cita, capítulo) — contenido separado del código de lógica.</p>
+<h3 id="77-bootstrap-de-zona-evitar-codigo-duplicado">7.7 Bootstrap de zona (evitar código duplicado)</h3>
+<table>
+<thead>
+<tr>
+<th>Clase</th>
+<th>Función</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ZoneVisualBootstrap</code></td>
+<td>Coloca a Alex en <code>S</code>, activa <code>GothicAtmosphere</code>, visual gótico</td>
+</tr>
+<tr>
+<td><code>ZoneUIBootstrap</code></td>
+<td>Crea <code>PremiumZoneHUD</code> y <code>ZoneMinimap</code></td>
+</tr>
+<tr>
+<td><code>ShadowEnemyVisual.create</code></td>
+<td>Crea nodo enemigo con paleta de colores</td>
+</tr>
+<tr>
+<td><code>EnemyBehavior</code></td>
+<td>Patrulla, persecución, embestidas</td>
+</tr>
+</tbody>
+</table>
+<h3 id="78-zona-3-flujo-del-jefe-punto-fuerte-de-la-sustentacion">7.8 Zona 3 — flujo del jefe (punto fuerte de la sustentación)</h3>
+<ol>
+<li>Contadores: <code>memories_read</code>, <code>seals_lit</code>, <code>echoes_collected</code>.  </li>
+<li><code>_try_unlock_boss()</code> cuando los tres llegan al máximo.  </li>
+<li><code>_run_boss_arena_sequence()</code>: oculta enemigos, overlay oscuro, cámara al jefe, teleport cerca del altar.  </li>
+<li>Jugador usa [E] o [Q] → <code>_heal_boss()</code> → animación → <code>_zone_complete()</code> → cinemática a Zona 4.</li>
+</ol>
+<p>Mensaje clave: <em>«El jefe no se “mata”; se sana. Eso codifica la respuesta no violenta.»</em></p>
+<hr />
+<h2 id="8-patrones-de-diseno">8. Patrones de diseño</h2>
+<table>
+<thead>
+<tr>
+<th>Patrón</th>
+<th>Ubicación</th>
+<th>Explicación breve para el jurado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Singleton (Autoload)</strong></td>
+<td>GameManager, DialogueManager, …</td>
+<td>Una sola instancia global accesible desde cualquier escena</td>
+</tr>
+<tr>
+<td><strong>State</strong></td>
+<td>MenuStateMachine + <code>menu/states/</code></td>
+<td>El menú cambia entre principal, opciones y pausa sin <code>if</code> infinitos</td>
+</tr>
+<tr>
+<td><strong>Observer</strong></td>
+<td>Señales <code>health_changed</code>, <code>action_performed</code></td>
+<td>La UI se actualiza sola cuando cambia la vida o el jugador hace un gesto</td>
+</tr>
+<tr>
+<td><strong>Factory / Bootstrap</strong></td>
+<td>ZoneUIBootstrap, ShadowEnemyVisual, PlayerAnimationFactory</td>
+<td>Creación uniforme de objetos complejos</td>
+</tr>
+<tr>
+<td><strong>Data-driven</strong></td>
+<td>MAP, CINEMATICS, StoryReflections</td>
+<td>Datos (mapa, textos) separados de la lógica</td>
+</tr>
+<tr>
+<td><strong>Strategy (ligero)</strong></td>
+<td>GothicAtmosphere temas, EnemyBehavior modos</td>
+<td>Comportamiento intercambiable según zona</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Nota honesta para la defensa:</strong> no usamos MVC estricto. Es arquitectura típica de Godot: <strong>escena + script por nivel</strong> + <strong>servicios globales</strong>. Es válido y mantenible para un proyecto académico de este tamaño.</p>
+<hr />
+<h2 id="9-demostracion-sugerida">9. Demostración sugerida</h2>
+<table>
+<thead>
+<tr>
+<th>Paso</th>
+<th>Qué mostrar</th>
+<th>Qué decir</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Menú → Jugar</td>
+<td>Intro cinemática y fade</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Zona 1 — intro misión</td>
+<td>Pasos numerados, HUD</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Recoger 1–2 ecos</td>
+<td>Reflexión narrativa + pulso [J]</td>
+</tr>
+<tr>
+<td>4</td>
+<td>(Opcional) Recibir daño</td>
+<td>Vidas en HUD, game over si quieren verlo rápido</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Zona 2 — pilares</td>
+<td>Mantener [E], contraste enemigos magenta</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Zona 3 — cristal y sello</td>
+<td>Progreso en HUD (CRIST / LUCES / ECOS)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Desbloquear jefe</td>
+<td>Sala del Espejo, sanar con E o Q</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Claro (si hay tiempo)</td>
+<td>Cierre con Mateo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tiempo total recomendado:</strong> 8–12 minutos con explicación + 5 minutos preguntas.</p>
+<hr />
+<h2 id="10-preguntas-frecuentes-del-jurado">10. Preguntas frecuentes del jurado</h2>
+<p><strong>¿Por qué Godot y no Unity/Unreal?</strong><br />
+Godot es libre, liviano y excelente para 2D pixel-art. GDScript es accesible para equipos académicos.</p>
+<p><strong>¿Cómo garantizan el mensaje anti-bullying?</strong><br />
+Textos en <code>StoryReflections</code>, mecánica de sanación del jefe, gesto de paz [Q], y reflexiones al recoger ecos.</p>
+<p><strong>¿Se puede extender el juego?</strong><br />
+Sí: añadir filas al <code>MAP</code>, nuevas entradas en <code>StoryReflections</code>, otra escena en <code>CAMPAIGN_SCENES</code>.</p>
+<p><strong>¿Qué fue lo más difícil técnicamente?</strong><br />
+Orden de inicialización (<code>call_deferred</code>), capas de UI, y sincronizar cinemáticas con cambio de escena sin bloquear al jugador.</p>
+<p><strong>¿Hay pruebas?</strong><br />
+Pruebas manuales por zona; el proyecto es presentación educativa, no suite automatizada extensa.</p>
+<p><strong>¿Accesibilidad?</strong><br />
+Opciones de daltonismo en settings; textos grandes en intro; resolución escalable.</p>
+<hr />
+<h2 id="anexo-archivos-clave-para-mostrar-en-pantalla">Anexo — Archivos clave para mostrar en pantalla</h2>
+<table>
+<thead>
+<tr>
+<th>Tema</th>
+<th>Archivo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Configuración global</td>
+<td><code>project.godot</code></td>
+</tr>
+<tr>
+<td>Vidas y game over</td>
+<td><code>autoloads/GameManager.gd</code></td>
+</tr>
+<tr>
+<td>Misión por zona</td>
+<td><code>scripts/mapa/ZoneMissionBriefs.gd</code></td>
+</tr>
+<tr>
+<td>Mapa zona 1</td>
+<td><code>scripts/mapa/Zone1_Labyrinth.gd</code> → <code>MAP</code></td>
+</tr>
+<tr>
+<td>Jugador</td>
+<td><code>scripts/personaje/Alex.gd</code></td>
+</tr>
+<tr>
+<td>Patrón State menú</td>
+<td><code>autoloads/MenuStateMachine.gd</code></td>
+</tr>
+<tr>
+<td>Cinemáticas</td>
+<td><code>autoloads/ZoneCinematicDirector.gd</code></td>
+</tr>
+<tr>
+<td>Documentación técnica extendida</td>
+<td><code>DOCUMENTACION_CODIGO.md</code> / <code>.pdf</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Documento generado para sustentación académica del proyecto Lost Eco — Godot 4.6.</em></p>
+</body>
+</html>

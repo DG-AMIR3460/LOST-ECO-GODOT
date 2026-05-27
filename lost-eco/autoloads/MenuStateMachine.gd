@@ -88,7 +88,10 @@ func _start_gameplay_scene(scene_path: String) -> void:
 	AudioManager.stop_menu_music(0.6)
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	await SceneTransition.change_scene(scene_path)
+	if scene_path == SettingsManager.GAME_SCENE:
+		await SceneTransition.change_scene_with_cinematic("intro_campaign", scene_path)
+	else:
+		await SceneTransition.change_scene(scene_path)
 	_is_transitioning = false
 
 

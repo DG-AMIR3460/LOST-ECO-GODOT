@@ -23,10 +23,30 @@ func _build_fade_overlay() -> void:
 
 
 func change_scene(scene_path: String, fade_duration: float = DEFAULT_FADE_DURATION) -> void:
+	await _run_scene_change(scene_path, "", fade_duration)
+
+
+func change_scene_with_cinematic(cinematic_id: String, scene_path: String, fade_duration: float = DEFAULT_FADE_DURATION) -> void:
+	await _run_scene_change(scene_path, cinematic_id, fade_duration)
+
+
+func play_bridge_and_change_scene(completed_zone: int, scene_path: String, fade_duration: float = DEFAULT_FADE_DURATION) -> void:
+	var key := ZoneCinematicDirector.get_bridge_key(completed_zone)
+	if key.is_empty():
+		await change_scene(scene_path, fade_duration)
+		return
+	await _run_scene_change(scene_path, key, fade_duration)
+
+
+func _run_scene_change(scene_path: String, cinematic_id: String, fade_duration: float) -> void:
 	if _is_transitioning:
 		return
 	_is_transitioning = true
 	DialogueManager.clear_all()
+	GameManager.close_pause()
+
+	if not cinematic_id.is_empty():
+		await ZoneCinematicDirector.play(cinematic_id)
 
 	await fade_out(fade_duration)
 	get_tree().paused = false

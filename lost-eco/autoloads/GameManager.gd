@@ -39,6 +39,10 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause"):
 		return
+	if DialogueManager.is_zone_intro_active():
+		return
+	if ZoneCinematicDirector.is_playing():
+		return
 	if _game_over_in_progress or _returning_to_menu:
 		return
 	if _is_menu_scene() or _is_core_gameplay_scene():
