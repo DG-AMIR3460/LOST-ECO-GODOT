@@ -444,19 +444,10 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
-	GameManager.on_zone_completed()
 	set_process(false)
-	GameManager.close_pause()
-	if GameManager.player:
-		GameManager.player.set_can_move(false)
-	QuestManager.advance_quest("zone1")
-	GameManager.update_empathy(0.33)
-	GameManager.add_score(500)
-	var refl := StoryReflections.get_zone_complete(1)
-	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 2.5)
-		await get_tree().create_timer(2.5).timeout
-	await SceneTransition.play_bridge_and_change_scene(1, "res://scenes/world/Zone2_Swamp.tscn")
+	GameManager.request_zone_complete(
+		1, "res://scenes/world/Zone2_Swamp.tscn", "zone1", 500, 0.33
+	)
 
 func _on_empathy_changed(v: float) -> void:
 	modulate = Color(0.5 + v * 0.5, 0.5 + v * 0.5, 0.6 + v * 0.4)

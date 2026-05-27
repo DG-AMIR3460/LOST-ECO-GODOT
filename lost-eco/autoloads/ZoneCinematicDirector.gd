@@ -55,7 +55,7 @@ const CINEMATICS: Dictionary = {
 		"skip_next_intro": false,
 		"slides": [
 			{"kind": "title", "title": "Zona superada", "subtitle": "El Río", "duration": 2.2},
-			{"kind": "quote", "speaker": "La Voz", "body": "Sin más sombras.\nHabla con Mateo en el claro.", "duration": 3.2},
+			{"kind": "quote", "speaker": "La Voz", "body": "Sin más sombras.\nAlex encuentra a Mateo en el claro.", "duration": 3.2},
 			{"kind": "chapter", "title": "EL CLARO", "subtitle": "Final", "body": "Palabras honestas. Sin violencia.", "duration": 2.8},
 		],
 	},

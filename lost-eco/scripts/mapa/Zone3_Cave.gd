@@ -781,17 +781,8 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
-	GameManager.on_zone_completed()
 	set_process(false)
-	GameManager.close_pause()
-	if GameManager.player:
-		GameManager.player.set_can_move(false)
-	QuestManager.advance_quest("zone3")
-	GameManager.update_empathy(0.34)
-	GameManager.add_score(700)
 	_update_hud()
-	var refl := StoryReflections.get_zone_complete(3)
-	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+700 pts", refl.accent, 2.5)
-		await get_tree().create_timer(2.5).timeout
-	await SceneTransition.play_bridge_and_change_scene(3, "res://scenes/world/Zone4_Rio.tscn")
+	GameManager.request_zone_complete(
+		3, "res://scenes/world/Zone4_Rio.tscn", "zone3", 700, 0.34
+	)

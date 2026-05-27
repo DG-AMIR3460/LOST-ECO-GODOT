@@ -26,6 +26,7 @@ var _pause_layer: CanvasLayer
 var _game_over_layer: CanvasLayer
 var _pause_open: bool = false
 var _returning_to_menu: bool = false
+var _zone_transition_running: bool = false
 var _ui_font: Font
 var _title_font: Font
 
@@ -37,6 +38,12 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_L:
+			_try_debug_skip_current_zone()
+			get_viewport().set_input_as_handled()
+			return
+
 	if not event.is_action_pressed("pause"):
 		return
 	if DialogueManager.is_zone_intro_active():
@@ -128,6 +135,45 @@ func on_zone_completed() -> void:
 	_game_over_in_progress = false
 
 
+## Completa la zona y cambia de escena desde el autoload (evita crashes al liberar el mapa).
+func request_zone_complete(
+	completed_zone: int,
+	next_scene: String,
+	quest_id: String,
+	score_points: int,
+	empathy_delta: float
+) -> void:
+	if _zone_transition_running:
+		return
+	_zone_transition_running = true
+	_run_zone_complete_async(completed_zone, next_scene, quest_id, score_points, empathy_delta)
+
+
+func _run_zone_complete_async(
+	completed_zone: int,
+	next_scene: String,
+	quest_id: String,
+	score_points: int,
+	empathy_delta: float
+) -> void:
+	on_zone_completed()
+	close_pause()
+	if player and is_instance_valid(player) and player.has_method("set_can_move"):
+		player.set_can_move(false)
+	QuestManager.advance_quest(quest_id)
+	update_empathy(empathy_delta)
+	add_score(score_points)
+	var refl := StoryReflections.get_zone_complete(completed_zone)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(
+			refl.title, refl.body + "\n+%d pts" % score_points, refl.accent, 2.5
+		)
+		await get_tree().create_timer(2.5).timeout
+	player = null
+	await SceneTransition.play_bridge_and_change_scene(completed_zone, next_scene)
+	_zone_transition_running = false
+
+
 func _game_over() -> void:
 	close_pause()
 	DialogueManager.clear_all()
@@ -179,6 +225,38 @@ func _is_core_gameplay_scene() -> bool:
 		return false
 	var path: String = current.scene_file_path
 	return path.contains("/core/") or path.contains("pantano_world")
+
+
+func _is_campaign_zone_scene() -> bool:
+	var current := get_tree().current_scene
+	if current == null:
+		return false
+	var path: String = current.scene_file_path
+	return path.contains("/world/Zone")
+
+
+func is_zone_transition_running() -> bool:
+	return _zone_transition_running
+
+
+func _try_debug_skip_current_zone() -> void:
+	if _is_menu_scene() or _is_core_gameplay_scene():
+		return
+	if not _is_campaign_zone_scene():
+		return
+	if _zone_transition_running:
+		return
+	if ZoneCinematicDirector.is_playing():
+		return
+	if _game_over_in_progress or _returning_to_menu:
+		return
+	var current := get_tree().current_scene
+	if current == null or not current.has_method("_zone_complete"):
+		return
+	DialogueManager.clear_all()
+	close_pause()
+	DialogueManager.show_corner_notice("Zona saltada — [L]", Color(0.95, 0.82, 0.42), 1.2)
+	current.call("_zone_complete")
 
 
 func _ensure_pause_layer() -> void:

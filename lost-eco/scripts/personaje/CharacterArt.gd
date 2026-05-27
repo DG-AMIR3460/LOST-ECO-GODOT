@@ -6,6 +6,7 @@ const SPRITE_DIR := "res://assets/sprites/"
 
 const SPRITE_FILES: Dictionary = {
 	"alex": "alex.png",
+	"mateo": "mateo.png",
 	"exploradora": "exploradora.png",
 	"monje": "monje.png",
 	"medium": "medium.png",
@@ -25,6 +26,7 @@ const SPRITE_FILES: Dictionary = {
 
 const DEFAULT_SCALE: Dictionary = {
 	"alex": 0.16,
+	"mateo": 0.36,
 	"exploradora": 0.15,
 	"monje": 0.15,
 	"medium": 0.15,

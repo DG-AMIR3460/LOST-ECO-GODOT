@@ -51,9 +51,19 @@ func _run_scene_change(scene_path: String, cinematic_id: String, fade_duration: 
 	await fade_out(fade_duration)
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+	DialogueManager.clear_all()
+	if GameManager.player != null:
+		GameManager.player = null
 	var error := get_tree().change_scene_to_file(scene_path)
 	if error != OK:
 		push_error("SceneTransition: no se pudo cargar %s (error %s)" % [scene_path, error])
+		var menu_err := get_tree().change_scene_to_file(SettingsManager.MENU_SCENE)
+		if menu_err != OK:
+			push_error("SceneTransition: tampoco se pudo cargar el menú (error %s)" % menu_err)
+		await get_tree().process_frame
+		await fade_in(fade_duration)
+		_is_transitioning = false
+		return
 	await get_tree().process_frame
 	await fade_in(fade_duration)
 

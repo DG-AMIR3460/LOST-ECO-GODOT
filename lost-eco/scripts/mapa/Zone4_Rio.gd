@@ -414,17 +414,13 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
-	GameManager.on_zone_completed()
 	set_process(false)
-	GameManager.close_pause()
 	if GameManager.player:
-		GameManager.player.set_can_move(false)
 		GameManager.player.set_speed_multiplier(1.0)
-	QuestManager.advance_quest("zone4")
-	GameManager.update_empathy(0.33)
-	GameManager.add_score(500)
-	var refl := StoryReflections.get_zone_complete(4)
-	if not refl.is_empty():
-		DialogueManager.show_reflection(refl.title, refl.body + "\n+500 pts", refl.accent, 2.5)
-		await get_tree().create_timer(2.5).timeout
-	await SceneTransition.play_bridge_and_change_scene(4, "res://scenes/world/Clearing.tscn")
+	GameManager.request_zone_complete(
+		4,
+		"res://scenes/cinematicas/rescue_cutscene.tscn",
+		"zone4",
+		500,
+		0.33
+	)
