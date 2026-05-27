@@ -76,6 +76,8 @@ func return_to_main_menu() -> void:
 		return
 	_returning_to_menu = true
 	close_pause()
+	DialogueManager.clear_all()
+	get_tree().paused = false
 	player = null
 	await SceneTransition.change_scene(SettingsManager.MENU_SCENE)
 	_returning_to_menu = false

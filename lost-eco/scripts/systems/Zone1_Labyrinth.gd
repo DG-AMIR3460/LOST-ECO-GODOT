@@ -59,6 +59,7 @@ var exit_poly: Polygon2D = null
 var exit_area: Area2D   = null
 var exit_unlocked: bool  = false
 var _transitioning: bool = false
+var _event_timer: float = 18.0
 
 # ── Enemigos (Sombras del Acoso) ──────────────────────────────────────────────
 var enemies: Array = []   # [{node, area, speed}]
@@ -211,6 +212,7 @@ func _collect_echo(node: Node) -> void:
 	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_exit()
+	EnemyBehavior.trigger_rush_near(enemies, node.global_position, 2)
 
 # ── Salida ────────────────────────────────────────────────────────────────────
 func _spawn_exit(pos: Vector2) -> void:
@@ -271,12 +273,10 @@ func _spawn_enemies() -> void:
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"body": ENEMY_BODY_COLOR,
+		"sprite": "susurrantes",
 		"glow": ENEMY_GLOW_COLOR,
 		"pulse": Color(1.55, 0.35, 0.40),
-		"eyes": Color(1.0, 0.20, 0.18),
-		"wisp": Color(0.30, 0.05, 0.12, 0.70),
-		"scale": 0.68,
+		"scale": 1.0,
 	})
 
 	# Área de daño
@@ -300,6 +300,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"area":  area,
 		"speed": 12.0 + idx * 1.0,
 	})
+	EnemyBehavior.init_entry(enemies[-1], world_pos)
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
@@ -360,36 +361,27 @@ func _process(delta: float) -> void:
 	if not GameManager.player: return
 	var player_pos = GameManager.player.global_position
 
+	_event_timer -= delta
+	if _event_timer <= 0.0:
+		_event_timer = randf_range(16.0, 24.0)
+		_trigger_shadow_surge()
+
 	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en): continue
-
-		# Gestión de aturdimiento
-		if en.has_meta("stunned"):
-			var t = en.get_meta("stunned") - delta
-			if t <= 0.0:
-				en.remove_meta("stunned")
-				# Restaurar color
-				var b = en.get_node_or_null("Body")
-				if b: b.modulate = Color(1, 1, 1)
-			else:
-				en.set_meta("stunned", t)
-				# Color azulado mientras está aturdido
-				var b = en.get_node_or_null("Body")
-				if b: b.modulate = Color(0.5, 0.5, 1.5)
-				continue  # No se mueve mientras esté aturdido
-
-		# Movimiento normal
-		var dir = player_pos - en.global_position
-		if dir.length() > 4.0:
-			en.global_position += dir.normalized() * ed["speed"] * delta
-		# Mantener área sincronizada
-		var ar: Area2D = ed["area"]
-		if is_instance_valid(ar):
-			ar.global_position = en.global_position
+		EnemyBehavior.tick(ed, player_pos, delta)
 
 	_update_minimap()
 	_check_exit_overlap()
+
+
+func _trigger_shadow_surge() -> void:
+	if _transitioning or enemies.is_empty():
+		return
+	EnemyBehavior.trigger_surge(enemies, 4.0)
+	DialogueManager.show_corner_notice("¡Oleada de susurros! — corren más rápido", Color(0.95, 0.45, 0.55), 2.5)
+	if fog_material:
+		var tween := create_tween()
+		tween.tween_method(func(v): fog_material.set_shader_parameter("light_radius", v), 0.16, 0.10, 0.4)
+		tween.tween_method(func(v): fog_material.set_shader_parameter("light_radius", v), 0.10, 0.16, 1.2)
 
 
 func _try_use_exit(body: Node) -> void:

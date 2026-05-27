@@ -26,6 +26,7 @@ func change_scene(scene_path: String, fade_duration: float = DEFAULT_FADE_DURATI
 	if _is_transitioning:
 		return
 	_is_transitioning = true
+	DialogueManager.clear_all()
 
 	await fade_out(fade_duration)
 	var error := get_tree().change_scene_to_file(scene_path)

@@ -66,9 +66,10 @@ const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
 
 var _transitioning: bool = false
+var _event_timer: float = 22.0
 var _boss_phase: int = 0
 var _boss_node: Node2D = null
-var _boss_poly: Polygon2D = null
+var _boss_sprite: CanvasItem = null
 var _boss_area: Area2D = null
 var _boss_tween: Tween = null
 
@@ -204,15 +205,16 @@ func _collect_echo(node: Node) -> void:
 	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_boss()
+	EnemyBehavior.trigger_rush_near(enemies, node.global_position, 2)
 
 
 func _unlock_boss() -> void:
 	boss_unlocked = true
-	if _boss_poly:
-		_boss_poly.color = Color(0.55, 0.20, 0.85)
+	if _boss_sprite:
+		_boss_sprite.modulate = Color(1.4, 1.0, 1.8)
 		var tween = create_tween().set_loops()
-		tween.tween_property(_boss_poly, "modulate", Color(1.8, 0.8, 2.5), 0.45)
-		tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 0.45)
+		tween.tween_property(_boss_sprite, "modulate", Color(1.8, 0.8, 2.5), 0.45)
+		tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 0.45)
 	if GameManager.player:
 		DialogueManager.show_corner_notice(
 			"Jefe despierto — acércate sin arma [Q].",
@@ -227,17 +229,25 @@ func _spawn_boss(pos: Vector2) -> void:
 	_boss_node.add_to_group("mirror_boss")
 	add_child(_boss_node)
 
-	_boss_poly = Polygon2D.new()
-	_boss_poly.polygon = PackedVector2Array([
-		Vector2(0, -10), Vector2(8, -4), Vector2(6, 8),
-		Vector2(-6, 8), Vector2(-8, -4)
-	])
-	_boss_poly.color = Color(0.25, 0.10, 0.40)
-	_boss_node.add_child(_boss_poly)
+	var boss_sprite := CharacterArt.make_sprite("espectro", 0.14)
+	if boss_sprite:
+		boss_sprite.name = "BossSprite"
+		_boss_node.add_child(boss_sprite)
+		_boss_sprite = boss_sprite
+	else:
+		var poly := Polygon2D.new()
+		poly.polygon = PackedVector2Array([
+			Vector2(0, -10), Vector2(8, -4), Vector2(6, 8),
+			Vector2(-6, 8), Vector2(-8, -4)
+		])
+		poly.color = Color(0.25, 0.10, 0.40)
+		_boss_node.add_child(poly)
+		_boss_sprite = poly
 
-	_boss_tween = create_tween().set_loops()
-	_boss_tween.tween_property(_boss_poly, "modulate", Color(1.2, 0.5, 1.8), 1.0)
-	_boss_tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 1.0)
+	if _boss_sprite:
+		_boss_tween = create_tween().set_loops()
+		_boss_tween.tween_property(_boss_sprite, "modulate", Color(1.2, 0.5, 1.8), 1.0)
+		_boss_tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 1.0)
 
 	_boss_area = Area2D.new()
 	_boss_area.global_position = center
@@ -288,8 +298,8 @@ func _on_boss_body_entered(body: Node) -> void:
 
 func _boss_pulse() -> void:
 	var tween = create_tween().set_loops(8)
-	tween.tween_property(_boss_poly, "modulate", Color(1.8, 0.3, 2.0), 0.25)
-	tween.tween_property(_boss_poly, "modulate", Color(1.0, 1.0, 1.0), 0.25)
+	tween.tween_property(_boss_sprite, "modulate", Color(1.8, 0.3, 2.0), 0.25)
+	tween.tween_property(_boss_sprite, "modulate", Color.WHITE, 0.25)
 
 
 func _heal_boss(_player: Node) -> void:
@@ -302,7 +312,7 @@ func _heal_boss(_player: Node) -> void:
 		Color(1.0, 0.85, 0.2), 3.0
 	)
 	var tween = create_tween()
-	tween.tween_property(_boss_poly, "modulate", Color(2.0, 1.7, 0.3), 2.0)
+	tween.tween_property(_boss_sprite, "modulate", Color(2.0, 1.7, 0.3), 2.0)
 	tween.tween_property(_boss_node, "scale", Vector2(0.1, 0.1), 1.5)
 	tween.tween_callback(_zone_complete)
 
@@ -315,13 +325,12 @@ func _spawn_enemies() -> void:
 
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
+	var sprite_keys := ["espectro", "humo_negro", "vigilantes", "parasito", "espectro"]
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"body": ENEMY_BODY_COLOR,
+		"sprite": sprite_keys[idx % sprite_keys.size()],
 		"glow": ENEMY_GLOW_COLOR,
 		"pulse": Color(1.55, 1.35, 0.35),
-		"eyes": Color(1.0, 0.92, 0.30),
-		"wisp": Color(0.28, 0.22, 0.06, 0.75),
-		"scale": 0.68,
+		"scale": 1.0,
 	})
 
 	var area = Area2D.new()
@@ -344,6 +353,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"area": area,
 		"speed": 18.0 + idx * 2.0,
 	})
+	EnemyBehavior.init_entry(enemies[-1], world_pos)
 
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
@@ -403,33 +413,23 @@ func _process(delta: float) -> void:
 		return
 	var player_pos = GameManager.player.global_position
 
+	_event_timer -= delta
+	if _event_timer <= 0.0:
+		_event_timer = randf_range(20.0, 28.0)
+		_trigger_cave_echo()
+
 	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en):
-			continue
-
-		if en.has_meta("stunned"):
-			var t = en.get_meta("stunned") - delta
-			if t <= 0.0:
-				en.remove_meta("stunned")
-				var b = en.get_node_or_null("Body")
-				if b:
-					b.modulate = Color(1, 1, 1)
-			else:
-				en.set_meta("stunned", t)
-				var b = en.get_node_or_null("Body")
-				if b:
-					b.modulate = Color(1.4, 1.2, 0.45)
-				continue
-
-		var dir = player_pos - en.global_position
-		if dir.length() > 4.0:
-			en.global_position += dir.normalized() * ed["speed"] * delta
-		var ar: Area2D = ed["area"]
-		if is_instance_valid(ar):
-			ar.global_position = en.global_position
+		EnemyBehavior.tick(ed, player_pos, delta)
 
 	_update_minimap()
+
+
+func _trigger_cave_echo() -> void:
+	if _transitioning or enemies.is_empty():
+		return
+	EnemyBehavior.trigger_surge(enemies, 3.5)
+	DialogueManager.show_corner_notice("Los ecos de la cueva despiertan — ¡emboscada!", Color(0.85, 0.72, 1.0), 2.5)
+	queue_redraw()
 
 
 func _setup_hud() -> void:

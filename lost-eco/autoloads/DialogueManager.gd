@@ -26,6 +26,26 @@ func _ready() -> void:
 	_title_font = load(TITLE_FONT_PATH) as Font
 
 
+func clear_all() -> void:
+	is_active = false
+	current_lines.clear()
+	current_line_index = 0
+	if _intro_tween and _intro_tween.is_valid():
+		_intro_tween.kill()
+	_intro_tween = null
+	if _corner_tween and _corner_tween.is_valid():
+		_corner_tween.kill()
+	_corner_tween = null
+	_unbind_intro_dismiss_on_move()
+	_active_banner = null
+	_corner_panel = null
+	if dialogue_box and is_instance_valid(dialogue_box):
+		dialogue_box.hide()
+	if _message_layer and is_instance_valid(_message_layer):
+		for child in _message_layer.get_children():
+			child.queue_free()
+
+
 func register_dialogue_box(box: Control) -> void:
 	dialogue_box = box
 

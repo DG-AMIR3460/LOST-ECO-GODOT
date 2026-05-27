@@ -44,6 +44,8 @@ var exit_poly: Polygon2D = null
 var exit_area: Area2D = null
 var exit_unlocked: bool = false
 var _transitioning: bool = false
+var _event_timer: float = 20.0
+var _mud_slow_timer: float = 0.0
 
 var enemies: Array = []
 const ENEMY_TILES = [
@@ -201,6 +203,7 @@ func _collect_echo(node: Node) -> void:
 	)
 	if echoes_collected >= TOTAL_ECHOES:
 		_unlock_exit()
+	EnemyBehavior.trigger_rush_near(enemies, node.global_position, 2)
 
 
 func _spawn_exit(pos: Vector2) -> void:
@@ -250,13 +253,12 @@ func _spawn_enemies() -> void:
 
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
+	var sprite_key := "ahogados" if idx % 2 == 0 else "hombre_lodo"
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"body": ENEMY_BODY_COLOR,
+		"sprite": sprite_key,
 		"glow": ENEMY_GLOW_COLOR,
 		"pulse": Color(0.55, 1.35, 0.45),
-		"eyes": Color(0.85, 1.0, 0.35),
-		"wisp": Color(0.10, 0.22, 0.06, 0.75),
-		"scale": 0.68,
+		"scale": 1.0,
 	})
 
 	var area = Area2D.new()
@@ -279,6 +281,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 		"area": area,
 		"speed": 14.0 + idx * 1.5,
 	})
+	EnemyBehavior.init_entry(enemies[-1], world_pos)
 
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
@@ -338,34 +341,30 @@ func _process(delta: float) -> void:
 		return
 	var player_pos = GameManager.player.global_position
 
+	_event_timer -= delta
+	if _mud_slow_timer > 0.0:
+		_mud_slow_timer -= delta
+		if _mud_slow_timer <= 0.0 and GameManager.player:
+			GameManager.player.set_speed_multiplier(0.65)
+	if _event_timer <= 0.0:
+		_event_timer = randf_range(18.0, 26.0)
+		_trigger_mud_surge()
+
 	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en):
-			continue
-
-		if en.has_meta("stunned"):
-			var t = en.get_meta("stunned") - delta
-			if t <= 0.0:
-				en.remove_meta("stunned")
-				var b = en.get_node_or_null("Body")
-				if b:
-					b.modulate = Color(1, 1, 1)
-			else:
-				en.set_meta("stunned", t)
-				var b = en.get_node_or_null("Body")
-				if b:
-					b.modulate = Color(0.5, 1.0, 0.6)
-				continue
-
-		var dir = player_pos - en.global_position
-		if dir.length() > 4.0:
-			en.global_position += dir.normalized() * ed["speed"] * delta
-		var ar: Area2D = ed["area"]
-		if is_instance_valid(ar):
-			ar.global_position = en.global_position
+		EnemyBehavior.tick(ed, player_pos, delta)
 
 	_update_minimap()
 	_check_exit_overlap()
+
+
+func _trigger_mud_surge() -> void:
+	if _transitioning or enemies.is_empty():
+		return
+	EnemyBehavior.trigger_surge(enemies, 4.5)
+	DialogueManager.show_corner_notice("El pantano se agita — ¡las sombras embisten!", Color(0.45, 0.95, 0.55), 2.5)
+	if GameManager.player:
+		GameManager.player.set_speed_multiplier(0.32)
+		_mud_slow_timer = 2.5
 
 
 func _try_use_exit(body: Node) -> void:

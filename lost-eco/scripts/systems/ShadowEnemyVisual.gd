@@ -1,9 +1,60 @@
 extends RefCounted
 class_name ShadowEnemyVisual
-## Construye sombras enemigas con silueta, ojos brillantes y animación.
+## Enemigos con sprite del sheet o silueta procedural como respaldo.
 
 
 static func create(parent: Node, world_pos: Vector2, palette: Dictionary) -> Node2D:
+	var sprite_key: String = palette.get("sprite", "")
+	if not sprite_key.is_empty():
+		return _create_sprite_enemy(parent, world_pos, palette, sprite_key)
+	return _create_polygon_enemy(parent, world_pos, palette)
+
+
+static func _create_sprite_enemy(parent: Node, world_pos: Vector2, palette: Dictionary, sprite_key: String) -> Node2D:
+	var enemy := Node2D.new()
+	enemy.global_position = world_pos
+	parent.add_child(enemy)
+
+	var sprite := CharacterArt.make_sprite(sprite_key, -1.0)
+	if sprite == null:
+		enemy.queue_free()
+		return _create_polygon_enemy(parent, world_pos, palette)
+
+	var scale_factor: float = palette.get("scale", 1.0)
+	sprite.scale *= scale_factor
+	sprite.offset.y *= scale_factor
+	enemy.add_child(sprite)
+
+	var glow := Polygon2D.new()
+	glow.name = "Glow"
+	glow.polygon = PackedVector2Array([
+		Vector2(-10, -8), Vector2(10, -8), Vector2(10, 8), Vector2(-10, 8),
+	])
+	var glow_color: Color = palette.get("glow", Color(0.5, 0.2, 0.3, 0.25))
+	glow.color = glow_color
+	glow.z_index = -1
+	enemy.add_child(glow)
+	enemy.move_child(glow, 0)
+
+	var float_tween := parent.create_tween().set_loops()
+	float_tween.set_trans(Tween.TRANS_SINE)
+	float_tween.set_ease(Tween.EASE_IN_OUT)
+	float_tween.tween_property(enemy, "position:y", enemy.position.y - 2.0, 0.8)
+	float_tween.tween_property(enemy, "position:y", enemy.position.y + 2.0, 0.8)
+
+	var pulse_tween := parent.create_tween().set_loops()
+	var pulse_color: Color = palette.get("pulse", Color(1.4, 1.2, 1.3))
+	pulse_tween.tween_property(sprite, "modulate", pulse_color, 0.7)
+	pulse_tween.tween_property(sprite, "modulate", Color.WHITE, 0.7)
+
+	var glow_tween := parent.create_tween().set_loops()
+	glow_tween.tween_property(glow, "modulate:a", 0.35, 0.85)
+	glow_tween.tween_property(glow, "modulate:a", 0.75, 0.85)
+
+	return enemy
+
+
+static func _create_polygon_enemy(parent: Node, world_pos: Vector2, palette: Dictionary) -> Node2D:
 	var body_color: Color = palette.get("body", Color(0.45, 0.06, 0.14))
 	var glow_color: Color = palette.get("glow", Color(0.85, 0.18, 0.28, 0.42))
 	var pulse_color: Color = palette.get("pulse", Color(1.6, 0.35, 0.45))
