@@ -6,6 +6,7 @@ signal dialogue_finished
 const FONT_PATH := "res://PatrickHand-Regular.ttf"
 const TITLE_FONT_PATH := "res://Fonts/AmaticSC-Bold.ttf"
 const CORNER_WIDTH := 76.0
+const INTRO_WIDTH := 220.0
 
 var dialogue_box: Control = null
 var current_lines: Array[String] = []
@@ -14,9 +15,11 @@ var is_active: bool = false
 
 var _message_layer: CanvasLayer
 var _active_banner: Control
+var _intro_overlay: ColorRect
+var _intro_root: Control
+var _intro_active: bool = false
 var _corner_panel: PanelContainer
 var _corner_tween: Tween
-var _intro_tween: Tween
 var _ui_font: Font
 var _title_font: Font
 
@@ -30,14 +33,10 @@ func clear_all() -> void:
 	is_active = false
 	current_lines.clear()
 	current_line_index = 0
-	if _intro_tween and _intro_tween.is_valid():
-		_intro_tween.kill()
-	_intro_tween = null
 	if _corner_tween and _corner_tween.is_valid():
 		_corner_tween.kill()
 	_corner_tween = null
-	_unbind_intro_dismiss_on_move()
-	_active_banner = null
+	dismiss_zone_intro()
 	_corner_panel = null
 	if dialogue_box and is_instance_valid(dialogue_box):
 		dialogue_box.hide()
@@ -83,45 +82,85 @@ func _end_dialogue() -> void:
 	dialogue_finished.emit()
 
 
-func show_zone_intro(title: String, objective: String, hint: String, accent: Color = Color(0.95, 0.88, 0.45)) -> void:
+## placement: "center" (modal + [E]) o "top_right" (esquina, también [E])
+func show_zone_intro(
+	title: String,
+	objective: String,
+	hint: String,
+	accent: Color = Color(0.95, 0.88, 0.45),
+	placement: String = "center"
+) -> void:
 	_ensure_message_layer()
 	dismiss_zone_intro()
+	_intro_active = true
 
-	var banner := _build_compact_panel(title, objective, hint, accent, 8, 7)
-	banner.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	banner.offset_left = 2.0
-	banner.offset_top = 36.0
-	banner.offset_right = 4.0 + CORNER_WIDTH
-	_message_layer.add_child(banner)
-	_active_banner = banner
+	if GameManager.player and GameManager.player.has_method("set_can_move"):
+		GameManager.player.set_can_move(false)
 
-	banner.modulate.a = 0.0
-	if _intro_tween and _intro_tween.is_valid():
-		_intro_tween.kill()
-	_intro_tween = create_tween()
-	_intro_tween.tween_property(banner, "modulate:a", 1.0, 0.2)
-	_intro_tween.tween_interval(3.0)
-	_intro_tween.tween_property(banner, "modulate:a", 0.0, 0.25)
-	_intro_tween.tween_callback(func() -> void:
-		_active_banner = null
-		_unbind_intro_dismiss_on_move()
-		if is_instance_valid(banner):
-			banner.queue_free()
-	)
-	_bind_intro_dismiss_on_move()
+	_intro_overlay = ColorRect.new()
+	_intro_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_intro_overlay.color = Color(0.02, 0.02, 0.06, 0.62)
+	_intro_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_message_layer.add_child(_intro_overlay)
+
+	var panel := _build_intro_panel(title, objective, hint, accent)
+	_active_banner = panel
+
+	if placement == "top_right":
+		panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		panel.offset_left = -(INTRO_WIDTH + 6.0)
+		panel.offset_top = 8.0
+		panel.offset_right = -6.0
+		_message_layer.add_child(panel)
+	else:
+		var center := CenterContainer.new()
+		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_message_layer.add_child(center)
+		center.add_child(panel)
+		_intro_root = center
+
+	panel.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(panel, "modulate:a", 1.0, 0.22)
 
 
 func dismiss_zone_intro() -> void:
-	if not _active_banner or not is_instance_valid(_active_banner):
+	if not _intro_active and _active_banner == null and _intro_overlay == null:
 		return
-	if _intro_tween and _intro_tween.is_valid():
-		_intro_tween.kill()
-	var banner := _active_banner
+	_intro_active = false
+
+	if _intro_overlay and is_instance_valid(_intro_overlay):
+		_intro_overlay.queue_free()
+	_intro_overlay = null
+
+	if _intro_root and is_instance_valid(_intro_root):
+		_intro_root.queue_free()
+		_intro_root = null
+		_active_banner = null
+	elif _active_banner and is_instance_valid(_active_banner):
+		_active_banner.queue_free()
 	_active_banner = null
-	_unbind_intro_dismiss_on_move()
-	var tween := create_tween()
-	tween.tween_property(banner, "modulate:a", 0.0, 0.12)
-	tween.tween_callback(banner.queue_free)
+
+	if GameManager.player and is_instance_valid(GameManager.player):
+		if GameManager.player.has_method("set_can_move") and not get_tree().paused:
+			GameManager.player.set_can_move(true)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _intro_active:
+		return
+	if _intro_continue_pressed(event):
+		dismiss_zone_intro()
+		get_viewport().set_input_as_handled()
+
+
+func _intro_continue_pressed(event: InputEvent) -> bool:
+	if event.is_action_pressed("interact"):
+		return true
+	if event is InputEventKey and event.pressed and not event.echo:
+		return event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]
+	return false
 
 
 func show_corner_notice(text: String, color: Color = Color(0.96, 0.94, 0.88), duration: float = 2.2) -> void:
@@ -170,22 +209,62 @@ func _show_corner_panel(title: String, body: String, accent: Color, duration: fl
 	)
 
 
-func _bind_intro_dismiss_on_move() -> void:
-	if GameManager.player == null:
-		call_deferred("_bind_intro_dismiss_on_move")
-		return
-	if not GameManager.player.action_performed.is_connected(_on_player_action_dismiss_intro):
-		GameManager.player.action_performed.connect(_on_player_action_dismiss_intro)
+func _build_intro_panel(
+	title: String,
+	objective: String,
+	hint: String,
+	accent: Color
+) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(INTRO_WIDTH, 0)
 
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.06, 0.12, 0.98)
+	style.border_color = accent
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.shadow_color = Color(0, 0, 0, 0.85)
+	style.shadow_size = 6
+	panel.add_theme_stylebox_override("panel", style)
 
-func _unbind_intro_dismiss_on_move() -> void:
-	if GameManager.player and GameManager.player.action_performed.is_connected(_on_player_action_dismiss_intro):
-		GameManager.player.action_performed.disconnect(_on_player_action_dismiss_intro)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	panel.add_child(margin)
 
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	margin.add_child(box)
 
-func _on_player_action_dismiss_intro(action_name: String, _intensity: float) -> void:
-	if action_name == "move":
-		dismiss_zone_intro()
+	if not title.is_empty():
+		var title_lbl := _make_ui_label(title, accent, 11, _title_font, HORIZONTAL_ALIGNMENT_CENTER)
+		box.add_child(title_lbl)
+
+	if not objective.is_empty():
+		var obj_lbl := _make_ui_label(objective, Color(0.98, 0.96, 0.90), 9, _ui_font, HORIZONTAL_ALIGNMENT_CENTER)
+		obj_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(obj_lbl)
+
+	if not hint.is_empty():
+		var hint_lbl := _make_ui_label(hint, Color(0.72, 0.85, 1.0), 8, _ui_font, HORIZONTAL_ALIGNMENT_CENTER)
+		hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(hint_lbl)
+
+	var sep := HSeparator.new()
+	box.add_child(sep)
+
+	var continue_lbl := _make_ui_label(
+		"[E] Continuar",
+		Color(0.55, 0.95, 0.50),
+		9,
+		_ui_font,
+		HORIZONTAL_ALIGNMENT_CENTER
+	)
+	box.add_child(continue_lbl)
+
+	return panel
 
 
 func _ensure_message_layer() -> void:

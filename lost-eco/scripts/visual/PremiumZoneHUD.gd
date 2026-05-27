@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name PremiumZoneHUD
-## HUD compacto — no tapa el juego.
+## HUD de zona: vidas, ecos/objetivos, puntos y cargas de luz.
 
 const UI_FONT := "res://PatrickHand-Regular.ttf"
 const TITLE_FONT := "res://Fonts/AmaticSC-Bold.ttf"
@@ -15,7 +15,7 @@ var _panel: PanelContainer = null
 
 func setup_compact(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:
 	layer = 100
-	_build_compact_shell(zone_title, max_health, max_light)
+	_build_shell(zone_title, max_health, max_light)
 	GameManager.health_changed.connect(_on_health)
 	GameManager.score_changed.connect(_on_score)
 	_on_health(GameManager.current_health)
@@ -26,53 +26,59 @@ func setup(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:
 	setup_compact(zone_title, max_health, max_light)
 
 
-func _build_compact_shell(zone_title: String, max_health: int, max_light: int) -> void:
+func _build_shell(zone_title: String, max_health: int, max_light: int) -> void:
 	_panel = PanelContainer.new()
-	_panel.position = Vector2(2, 2)
+	_panel.position = Vector2(4, 4)
 	var pstyle := StyleBoxFlat.new()
-	pstyle.bg_color = Color(0.08, 0.06, 0.11, 0.88)
-	pstyle.border_color = Color(0.75, 0.62, 0.22, 0.8)
-	pstyle.set_border_width_all(1)
-	pstyle.set_corner_radius_all(3)
+	pstyle.bg_color = Color(0.06, 0.05, 0.10, 0.92)
+	pstyle.border_color = Color(0.82, 0.68, 0.28, 0.9)
+	pstyle.set_border_width_all(2)
+	pstyle.set_corner_radius_all(4)
 	_panel.add_theme_stylebox_override("panel", pstyle)
 	add_child(_panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 4)
-	margin.add_theme_constant_override("margin_top", 3)
-	margin.add_theme_constant_override("margin_right", 4)
-	margin.add_theme_constant_override("margin_bottom", 3)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 5)
 	_panel.add_child(margin)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
+	box.add_theme_constant_override("separation", 3)
 	margin.add_child(box)
 
-	_zone_lbl = _label(zone_title, 7, Color(0.92, 0.84, 0.45), true)
+	_zone_lbl = _label(zone_title, 10, Color(0.95, 0.88, 0.42), true)
 	box.add_child(_zone_lbl)
 
-	var row1 := HBoxContainer.new()
-	row1.add_theme_constant_override("separation", 4)
-	box.add_child(row1)
+	var lives_row := HBoxContainer.new()
+	lives_row.add_theme_constant_override("separation", 5)
+	box.add_child(lives_row)
+	lives_row.add_child(_label("VIDAS", 9, Color(0.95, 0.75, 0.55)))
 	for _i in max_health:
 		var h := Control.new()
-		h.custom_minimum_size = Vector2(7, 7)
+		h.custom_minimum_size = Vector2(14, 14)
 		h.set_script(preload("res://scripts/core/ui/HeartIcon.gd"))
-		row1.add_child(h)
+		lives_row.add_child(h)
 		_hearts.append(h)
-	_status_lbl = _label("ECOS 0/0", 7, Color(0.95, 0.88, 0.38))
-	row1.add_child(_status_lbl)
 
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 3)
-	box.add_child(row2)
-	_score_lbl = _label("0 pts", 7, Color(0.82, 0.78, 0.58))
-	row2.add_child(_score_lbl)
+	var obj_row := HBoxContainer.new()
+	obj_row.add_theme_constant_override("separation", 6)
+	box.add_child(obj_row)
+	_status_lbl = _label("ECOS 0/0", 9, Color(0.95, 0.90, 0.40))
+	obj_row.add_child(_status_lbl)
+	_score_lbl = _label("0 pts", 9, Color(0.82, 0.78, 0.62))
+	obj_row.add_child(_score_lbl)
+
+	var light_row := HBoxContainer.new()
+	light_row.add_theme_constant_override("separation", 5)
+	box.add_child(light_row)
+	light_row.add_child(_label("LUZ", 9, Color(0.75, 0.88, 1.0)))
 	for _i in max_light:
 		var pip := Control.new()
-		pip.custom_minimum_size = Vector2(5, 5)
+		pip.custom_minimum_size = Vector2(10, 10)
 		pip.set_script(preload("res://scripts/visual/LightPipIcon.gd"))
-		row2.add_child(pip)
+		light_row.add_child(pip)
 		_light_pips.append(pip)
 
 
@@ -106,7 +112,7 @@ func update_light_charges(current: int, maximum: int) -> void:
 func _on_health(current: int) -> void:
 	for i in _hearts.size():
 		if _hearts[i].has_method("set_filled"):
-			_hearts[i].set_filled(i < current, false)
+			_hearts[i].set_filled(i < current, true)
 
 
 func _on_score(score: int) -> void:

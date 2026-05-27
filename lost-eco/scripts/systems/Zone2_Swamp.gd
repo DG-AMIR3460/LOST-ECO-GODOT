@@ -511,6 +511,7 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
+	GameManager.on_zone_completed()
 	set_process(false)
 	GameManager.close_pause()
 	if GameManager.player:

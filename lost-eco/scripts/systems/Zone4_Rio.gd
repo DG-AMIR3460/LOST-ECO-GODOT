@@ -375,19 +375,15 @@ func _check_exit_overlap() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = ZoneVisualBootstrap.create_hud(self, "ZONA 4 — El Río", MAX_CHARGES)
-	minimap = ZoneMinimap.new()
-	minimap.setup(MAP, {
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z4 Río", MAX_CHARGES)
+	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": WATER_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
 		"enemy": Color(0.92, 0.18, 0.28),
-		"border": Color(0.35, 0.72, 0.55, 0.9),
-	})
-	minimap.position = Vector2(208, 88)
-	minimap.enable_fog_of_war()
-	hud_layer.add_child(minimap)
+	}, true, 4)
+	hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
 	_update_hud()
 
 
@@ -422,6 +418,7 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
+	GameManager.on_zone_completed()
 	set_process(false)
 	GameManager.close_pause()
 	if GameManager.player:

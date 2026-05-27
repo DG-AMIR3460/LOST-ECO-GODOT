@@ -21,8 +21,9 @@ var max_health: int = 3
 var current_health: int = 3
 var _game_over_in_progress: bool = false
 
-# ── Pausa ────────────────────────────────────────────────────────────────────
+# ── Pausa / Game Over ────────────────────────────────────────────────────────
 var _pause_layer: CanvasLayer
+var _game_over_layer: CanvasLayer
 var _pause_open: bool = false
 var _returning_to_menu: bool = false
 var _ui_font: Font
@@ -76,6 +77,8 @@ func return_to_main_menu() -> void:
 		return
 	_returning_to_menu = true
 	close_pause()
+	close_game_over()
+	_game_over_in_progress = false
 	DialogueManager.clear_all()
 	get_tree().paused = false
 	player = null
@@ -111,15 +114,46 @@ func heal(amount: int = 1) -> void:
 	health_changed.emit(current_health)
 
 
+func restore_full_health() -> void:
+	current_health = max_health
+	health_changed.emit(current_health)
+
+
+func on_zone_completed() -> void:
+	restore_full_health()
+	_game_over_in_progress = false
+
+
 func _game_over() -> void:
 	close_pause()
+	DialogueManager.clear_all()
 	if player and player.has_method("set_can_move"):
 		player.set_can_move(false)
-	await get_tree().create_timer(1.5).timeout
-	current_health = max_health
-	_game_over_in_progress = false
+	_ensure_game_over_layer()
+	_game_over_layer.visible = true
+	get_tree().paused = true
+
+
+func close_game_over() -> void:
+	if _game_over_layer and is_instance_valid(_game_over_layer):
+		_game_over_layer.visible = false
 	get_tree().paused = false
+
+
+func _game_over_continue() -> void:
+	close_game_over()
+	restore_full_health()
+	_game_over_in_progress = false
+	if player and player.has_method("set_can_move"):
+		player.set_can_move(true)
 	get_tree().reload_current_scene()
+
+
+func _game_over_exit() -> void:
+	close_game_over()
+	restore_full_health()
+	_game_over_in_progress = false
+	return_to_main_menu()
 
 
 # ── Interfaz ─────────────────────────────────────────────────────────────────
@@ -225,3 +259,74 @@ func _make_pause_button(text: String) -> Button:
 	if button.has_method("_ready"):
 		button._ready()
 	return button
+
+
+func _ensure_game_over_layer() -> void:
+	if _game_over_layer and is_instance_valid(_game_over_layer):
+		return
+
+	_game_over_layer = CanvasLayer.new()
+	_game_over_layer.layer = 125
+	_game_over_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_game_over_layer)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.04, 0.01, 0.08, 0.82)
+	_game_over_layer.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_game_over_layer.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(200, 120)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.04, 0.10, 0.98)
+	style.border_color = Color(0.95, 0.25, 0.30, 0.95)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(5)
+	style.shadow_color = Color(0, 0, 0, 0.7)
+	style.shadow_size = 8
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "GAME OVER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+	title.add_theme_font_size_override("font_size", 20)
+	if _title_font:
+		title.add_theme_font_override("font", _title_font)
+	box.add_child(title)
+
+	var subtitle := Label.new()
+	subtitle.text = "Te quedaste sin vidas."
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle.add_theme_color_override("font_color", Color(0.88, 0.84, 0.78))
+	subtitle.add_theme_font_size_override("font_size", 10)
+	if _ui_font:
+		subtitle.add_theme_font_override("font", _ui_font)
+	box.add_child(subtitle)
+
+	var continue_btn := _make_pause_button("Seguir jugando")
+	continue_btn.pressed.connect(_game_over_continue)
+	box.add_child(continue_btn)
+
+	var menu_btn := _make_pause_button("Salir al menú")
+	menu_btn.pressed.connect(_game_over_exit)
+	box.add_child(menu_btn)
+
+	_game_over_layer.visible = false

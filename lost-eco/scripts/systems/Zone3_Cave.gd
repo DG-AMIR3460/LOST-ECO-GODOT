@@ -434,7 +434,7 @@ func _boss_lock_message() -> String:
 func _update_hud_status() -> void:
 	if hud_layer:
 		hud_layer.update_status(
-			"E%d/%d M%d/%d S%d/%d" % [
+			"ECOS %d/%d  MEM %d/%d  SEL %d/%d" % [
 				echoes_collected, TOTAL_ECHOES,
 				memories_read, TOTAL_MEMORIES,
 				seals_lit, TOTAL_SEALS
@@ -630,6 +630,7 @@ func _zone_complete() -> void:
 	if _transitioning:
 		return
 	_transitioning = true
+	GameManager.on_zone_completed()
 	set_process(false)
 	GameManager.close_pause()
 	if GameManager.player:
