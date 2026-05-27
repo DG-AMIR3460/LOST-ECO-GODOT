@@ -1,7 +1,7 @@
 extends Node2D
 
 # ── Mapa (32 columnas × 20 filas) ────────────────────────────────────────────
-# S = Inicio | E = Eco | B = Jefe espejo | # = Pared | . = Suelo de cueva
+# S = Inicio | E = Eco | B = Jefe | Cristales y sellos en tiles fijos
 const MAP = [
 	"################################",
 	"#S.............................#",
@@ -40,8 +40,29 @@ var walls:  Array = []
 
 var echoes_collected: int = 0
 const TOTAL_ECHOES = 3
+var memories_read: int = 0
+const TOTAL_MEMORIES = 3
+var seals_lit: int = 0
+const TOTAL_SEALS = 3
+const SEAL_PULSE_RADIUS := 42.0
+
 var boss_unlocked: bool = false
 var boss_defeated: bool = false
+
+var memories: Array = []
+var seals: Array = []
+var _near_memory: Dictionary = {}
+
+const MEMORY_TILES = [
+	Vector2i(7, 2),
+	Vector2i(5, 12),
+	Vector2i(24, 16),
+]
+const SEAL_TILES = [
+	Vector2i(18, 4),
+	Vector2i(10, 8),
+	Vector2i(16, 14),
+]
 
 var enemies: Array = []
 const ENEMY_TILES = [
@@ -87,6 +108,8 @@ func _ready() -> void:
 	if fog_ui:
 		fog_ui.visible = false
 	_generate_map()
+	_spawn_memories()
+	_spawn_seals()
 	_spawn_enemies()
 	_setup_gothic_player()
 	_setup_hud()
@@ -102,8 +125,8 @@ func _ready() -> void:
 	await get_tree().create_timer(0.5).timeout
 	DialogueManager.show_zone_intro(
 		"ZONA 3 — Cueva del Espejo",
-		"Los cristales reflejan tus miedos.\nRecoge 3 Ecos y enfrenta al jefe del espejo.",
-		"No pelees: acércate sin arma [Q] para sanarlo.",
+		"Lee 3 Cristales [E], enciende 3 Sellos [J],\nrecoge 3 Ecos y san al jefe sin arma [Q].",
+		"Cada tarea desbloquea un paso distinto.",
 		Color(0.92, 0.82, 0.40)
 	)
 
@@ -137,8 +160,6 @@ func _generate_map() -> void:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					if randf() < 0.16:
 						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
-					if randf() < 0.10:
-						_spawn_crystal(pos)
 	queue_redraw()
 
 
@@ -157,15 +178,57 @@ func _add_wall(pos: Vector2) -> void:
 	b.add_child(c)
 
 
-func _spawn_crystal(pos: Vector2) -> void:
-	var poly = Polygon2D.new()
-	poly.position = pos + Vector2(TS / 2.0, TS / 2.0)
+func _spawn_memories() -> void:
+	for i in MEMORY_TILES.size():
+		var pos := Vector2(MEMORY_TILES[i].x * TS, MEMORY_TILES[i].y * TS)
+		_spawn_memory(pos, i + 1)
+
+
+func _spawn_memory(pos: Vector2, index: int) -> void:
+	var center := pos + Vector2(TS / 2.0, TS / 2.0)
+	var node := Node2D.new()
+	node.global_position = center
+	add_child(node)
+	var poly := Polygon2D.new()
 	poly.polygon = PackedVector2Array([
-		Vector2(0, -5), Vector2(3, -1), Vector2(2, 4),
-		Vector2(-2, 4), Vector2(-3, -1)
+		Vector2(0, -6), Vector2(4, -1), Vector2(3, 5),
+		Vector2(-3, 5), Vector2(-4, -1)
 	])
-	poly.color = CRYSTAL_COLOR
-	add_child(poly)
+	poly.color = Color(0.55, 0.75, 0.95)
+	node.add_child(poly)
+	var area := Area2D.new()
+	area.global_position = center
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.monitoring = true
+	add_child(area)
+	var c := CollisionShape2D.new()
+	var s := CircleShape2D.new()
+	s.radius = 11
+	c.shape = s
+	area.add_child(c)
+	memories.append({"node": node, "poly": poly, "area": area, "index": index, "done": false})
+
+
+func _spawn_seals() -> void:
+	for i in SEAL_TILES.size():
+		var pos := Vector2(SEAL_TILES[i].x * TS, SEAL_TILES[i].y * TS)
+		_spawn_seal(pos)
+
+
+func _spawn_seal(pos: Vector2) -> void:
+	var center := pos + Vector2(TS / 2.0, TS / 2.0)
+	var node := Node2D.new()
+	node.global_position = center
+	add_child(node)
+	var ring := Polygon2D.new()
+	ring.polygon = PackedVector2Array([
+		Vector2(-5, 0), Vector2(0, -5), Vector2(5, 0),
+		Vector2(0, 5), Vector2(-5, 0)
+	])
+	ring.color = Color(0.35, 0.30, 0.45)
+	node.add_child(ring)
+	seals.append({"node": node, "ring": ring, "pos": center, "done": false})
 
 
 func _spawn_echo(pos: Vector2) -> void:
@@ -187,9 +250,17 @@ func _collect_echo(node: Node) -> void:
 		"Eco %d/%d  +150 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
 		Color(0.75, 0.55, 0.95), 2.0
 	)
-	if echoes_collected >= TOTAL_ECHOES:
-		_unlock_boss()
+	_try_unlock_boss()
 	EnemyBehavior.trigger_rush_near(enemies, node.global_position, 2)
+	_update_hud_status()
+
+
+func _try_unlock_boss() -> void:
+	if boss_unlocked:
+		return
+	if echoes_collected < TOTAL_ECHOES or memories_read < TOTAL_MEMORIES or seals_lit < TOTAL_SEALS:
+		return
+	_unlock_boss()
 
 
 func _unlock_boss() -> void:
@@ -250,10 +321,7 @@ func _on_boss_body_entered(body: Node) -> void:
 	if not body.is_in_group("player") or boss_defeated:
 		return
 	if not boss_unlocked:
-		DialogueManager.show_corner_notice(
-			"Jefe dormido — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
-			Color(0.6, 0.5, 0.9), 2.0
-		)
+		DialogueManager.show_corner_notice(_boss_lock_message(), Color(0.6, 0.5, 0.9), 2.0)
 		return
 
 	_boss_phase += 1
@@ -355,10 +423,31 @@ func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 3.0)
 
 
+func _boss_lock_message() -> String:
+	return "ECO %d/%d  MEM %d/%d  SEL %d/%d" % [
+		echoes_collected, TOTAL_ECHOES,
+		memories_read, TOTAL_MEMORIES,
+		seals_lit, TOTAL_SEALS
+	]
+
+
+func _update_hud_status() -> void:
+	if hud_layer:
+		hud_layer.update_status(
+			"E%d/%d M%d/%d S%d/%d" % [
+				echoes_collected, TOTAL_ECHOES,
+				memories_read, TOTAL_MEMORIES,
+				seals_lit, TOTAL_SEALS
+			]
+		)
+
+
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("attack") and light_charges > 0 and GameManager.player:
 		_use_light_pulse()
 		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("interact"):
+		_try_read_memory()
 
 
 func _use_light_pulse() -> void:
@@ -384,12 +473,81 @@ func _use_light_pulse() -> void:
 			if is_instance_valid(ar):
 				ar.global_position = en.global_position
 
+	_try_light_seals(player_pos)
+
 	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.9, 0.7, 1.0), 1.5)
 
 	await get_tree().create_timer(8.0).timeout
 	if not _transitioning:
 		light_charges = min(light_charges + 1, MAX_CHARGES)
 		_update_hud()
+
+
+func _try_light_seals(player_pos: Vector2) -> void:
+	for seal in seals:
+		if seal.get("done", false):
+			continue
+		var center: Vector2 = seal.get("pos", Vector2.ZERO)
+		if center.distance_to(player_pos) <= SEAL_PULSE_RADIUS:
+			_light_seal(seal)
+
+
+func _light_seal(seal: Dictionary) -> void:
+	if seal.get("done", false):
+		return
+	seal["done"] = true
+	seals_lit += 1
+	var ring: Polygon2D = seal.get("ring")
+	if ring:
+		ring.color = Color(0.95, 0.82, 0.35)
+	GameManager.add_score(70)
+	DialogueManager.show_corner_notice(
+		"Sello encendido (%d/%d)" % [seals_lit, TOTAL_SEALS],
+		Color(0.92, 0.78, 0.40), 1.6
+	)
+	_update_hud_status()
+	_try_unlock_boss()
+
+
+func _try_read_memory() -> void:
+	_update_near_memory()
+	if _near_memory.is_empty() or _near_memory.get("done", true):
+		return
+	_read_memory(_near_memory)
+
+
+func _read_memory(mem: Dictionary) -> void:
+	if mem.get("done", false):
+		return
+	mem["done"] = true
+	memories_read += 1
+	var idx: int = mem.get("index", 1)
+	var poly: Polygon2D = mem.get("poly")
+	if poly:
+		poly.color = Color(0.85, 0.95, 1.0)
+	GameManager.add_score(90)
+	var refl := StoryReflections.get_crystal_memory(idx)
+	if not refl.is_empty():
+		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.0)
+	DialogueManager.show_corner_notice(
+		"Cristal leído (%d/%d)" % [memories_read, TOTAL_MEMORIES],
+		Color(0.72, 0.88, 1.0), 1.6
+	)
+	_update_hud_status()
+	_try_unlock_boss()
+
+
+func _update_near_memory() -> void:
+	_near_memory = {}
+	if GameManager.player == null:
+		return
+	for m in memories:
+		if m.get("done", false):
+			continue
+		var area: Area2D = m.get("area")
+		if is_instance_valid(area) and area.overlaps_body(GameManager.player):
+			_near_memory = m
+			return
 
 
 func _setup_gothic_player() -> void:
@@ -418,6 +576,7 @@ func _process(delta: float) -> void:
 		EnemyBehavior.tick(ed, player_pos, delta)
 
 	_update_minimap()
+	_update_near_memory()
 
 
 func _trigger_cave_echo() -> void:
@@ -429,27 +588,20 @@ func _trigger_cave_echo() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = PremiumZoneHUD.new()
-	hud_layer.setup("ZONA 3 — Cueva del Espejo", GameManager.max_health, MAX_CHARGES)
-	add_child(hud_layer)
-	minimap = ZoneMinimap.new()
-	minimap.setup(MAP, {
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z3 Cueva", MAX_CHARGES)
+	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": FLOOR_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": Color(0.85, 0.72, 0.25),
 		"enemy": Color(0.92, 0.18, 0.28),
-		"border": Color(0.72, 0.58, 0.22, 0.9),
-	})
-	minimap.position = Vector2(208, 88)
-	minimap.enable_fog_of_war()
-	hud_layer.add_child(minimap)
-	_update_hud()
+	}, true, 4)
+	_update_hud_status()
 
 
 func _update_hud() -> void:
+	_update_hud_status()
 	if hud_layer:
-		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
 		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 

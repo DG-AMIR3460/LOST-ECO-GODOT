@@ -1,11 +1,11 @@
 extends Node2D
 
 # ── Mapa (32 columnas × 20 filas) ────────────────────────────────────────────
-# S = Inicio | E = Eco | X = Salida | # = Pared | . = Pantano
+# S = Inicio | E = Eco | P = Pilar (mantén [E] para activar) | X = Salida
 const MAP = [
 	"################################",
 	"#S.............................#",
-	"#....E.........................#",
+	"#....E....P....................#",
 	"#..............................#",
 	"#..............................#",
 	"##########..#########..#########",
@@ -15,12 +15,12 @@ const MAP = [
 	"#..............................#",
 	"##########..#########..#########",
 	"#..............................#",
-	"#.........E....................#",
+	"#.........E....P...............#",
 	"#..............................#",
 	"#..............................#",
 	"##########..#########..#########",
 	"#..............................#",
-	"#..............................#",
+	"#...................P..........#",
 	"#.............................X#",
 	"################################",
 ]
@@ -39,6 +39,13 @@ var walls:  Array = []
 
 var echoes_collected: int = 0
 const TOTAL_ECHOES = 3
+var pillars_activated: int = 0
+const TOTAL_PILLARS = 3
+const PILLAR_HOLD_TIME := 1.8
+
+var pillars: Array = []
+var _near_pillar: Dictionary = {}
+var _pillar_hold: float = 0.0
 
 var exit_poly: Polygon2D = null
 var exit_area: Area2D = null
@@ -93,8 +100,8 @@ func _ready() -> void:
 	await get_tree().create_timer(0.5).timeout
 	DialogueManager.show_zone_intro(
 		"ZONA 2 — El Pantano",
-		"El fango te frena a cada paso.\nRecoge 3 Ecos de Luz para abrir la salida.",
-		"Usa [J] para repeler sombras. La paciencia es tu camino.",
+		"Activa 3 Pilares de Paciencia (mantén [E]).\nLuego recoge 3 Ecos para abrir la salida.",
+		"El fango te frena — no corras.",
 		Color(0.65, 0.95, 0.50)
 	)
 
@@ -118,6 +125,10 @@ func _generate_map() -> void:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_mud_zone(pos)
 					_spawn_echo(pos)
+				"P":
+					floors.append(Rect2(pos, Vector2(TS, TS)))
+					_add_mud_zone(pos)
+					_spawn_pillar(pos)
 				"X":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_mud_zone(pos)
@@ -181,9 +192,42 @@ func _collect_echo(node: Node) -> void:
 		"Eco %d/%d  +120 pts  ⚡+1" % [echoes_collected, TOTAL_ECHOES],
 		Color(0.6, 0.95, 0.5), 2.0
 	)
-	if echoes_collected >= TOTAL_ECHOES:
+	if echoes_collected >= TOTAL_ECHOES and pillars_activated >= TOTAL_PILLARS:
 		_unlock_exit()
 	EnemyBehavior.trigger_rush_near(enemies, node.global_position, 2)
+	_update_hud_status()
+
+
+func _spawn_pillar(pos: Vector2) -> void:
+	var center := pos + Vector2(TS / 2.0, TS / 2.0)
+	var node := Node2D.new()
+	node.global_position = center
+	add_child(node)
+	var poly := Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(-4, 4), Vector2(0, -6), Vector2(4, 4), Vector2(0, 2)
+	])
+	poly.color = Color(0.35, 0.55, 0.28)
+	node.add_child(poly)
+	var area := Area2D.new()
+	area.global_position = center
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.monitoring = true
+	add_child(area)
+	var c := CollisionShape2D.new()
+	var s := CircleShape2D.new()
+	s.radius = 11
+	c.shape = s
+	area.add_child(c)
+	pillars.append({"node": node, "poly": poly, "area": area, "done": false})
+
+
+func _update_hud_status() -> void:
+	if hud_layer:
+		hud_layer.update_status(
+			"ECO %d/%d  PIL %d/%d" % [echoes_collected, TOTAL_ECHOES, pillars_activated, TOTAL_PILLARS]
+		)
 
 
 func _spawn_exit(pos: Vector2) -> void:
@@ -215,6 +259,10 @@ func _spawn_exit(pos: Vector2) -> void:
 
 
 func _unlock_exit() -> void:
+	if exit_unlocked:
+		return
+	if pillars_activated < TOTAL_PILLARS or echoes_collected < TOTAL_ECHOES:
+		return
 	exit_unlocked = true
 	if exit_poly:
 		exit_poly.color = EXIT_OPEN_COLOR
@@ -280,6 +328,46 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("attack") and light_charges > 0 and GameManager.player:
 		_use_light_pulse()
 		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("interact"):
+		_try_pillar_interact()
+
+
+func _try_pillar_interact() -> void:
+	_update_near_pillar()
+	if _near_pillar.is_empty() or _near_pillar.get("done", true):
+		return
+	_pillar_hold = 0.0
+
+
+func _activate_pillar(pillar: Dictionary) -> void:
+	if pillar.get("done", false):
+		return
+	pillar["done"] = true
+	pillars_activated += 1
+	var poly: Polygon2D = pillar.get("poly")
+	if poly:
+		poly.color = Color(0.55, 0.95, 0.45)
+	GameManager.add_score(80)
+	DialogueManager.show_corner_notice(
+		"Pilar activado (%d/%d) — la paciencia abre caminos." % [pillars_activated, TOTAL_PILLARS],
+		Color(0.5, 0.95, 0.55), 1.8
+	)
+	_update_hud_status()
+	if echoes_collected >= TOTAL_ECHOES and pillars_activated >= TOTAL_PILLARS:
+		_unlock_exit()
+
+
+func _update_near_pillar() -> void:
+	_near_pillar = {}
+	if GameManager.player == null:
+		return
+	for p in pillars:
+		if p.get("done", false):
+			continue
+		var area: Area2D = p.get("area")
+		if is_instance_valid(area) and area.overlaps_body(GameManager.player):
+			_near_pillar = p
+			return
 
 
 func _use_light_pulse() -> void:
@@ -338,6 +426,17 @@ func _process(delta: float) -> void:
 
 	_update_minimap()
 	_check_exit_overlap()
+	_update_near_pillar()
+	if not _near_pillar.is_empty() and not _near_pillar.get("done", true):
+		if Input.is_action_pressed("interact"):
+			_pillar_hold += delta
+			if _pillar_hold >= PILLAR_HOLD_TIME:
+				_activate_pillar(_near_pillar)
+				_pillar_hold = 0.0
+		else:
+			_pillar_hold = 0.0
+	else:
+		_pillar_hold = 0.0
 
 
 func _trigger_mud_surge() -> void:
@@ -356,10 +455,10 @@ func _try_use_exit(body: Node) -> void:
 	if exit_unlocked:
 		_zone_complete()
 	else:
-		DialogueManager.show_corner_notice(
-			"Salida bloqueada — faltan %d ecos." % (TOTAL_ECHOES - echoes_collected),
-			Color(0.6, 0.85, 0.5), 2.0
-		)
+		var msg := "Faltan ecos (%d/%d)" % [echoes_collected, TOTAL_ECHOES]
+		if pillars_activated < TOTAL_PILLARS:
+			msg = "Pilares %d/%d y ecos %d/%d" % [pillars_activated, TOTAL_PILLARS, echoes_collected, TOTAL_ECHOES]
+		DialogueManager.show_corner_notice(msg, Color(0.6, 0.85, 0.5), 1.5)
 
 
 func _check_exit_overlap() -> void:
@@ -370,25 +469,20 @@ func _check_exit_overlap() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = ZoneVisualBootstrap.create_hud(self, "ZONA 2 — El Pantano", MAX_CHARGES)
-	minimap = ZoneMinimap.new()
-	minimap.setup(MAP, {
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z2 Pantano", MAX_CHARGES)
+	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": MUD_COLOR,
 		"wall": WALL_COLOR,
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
 		"enemy": Color(0.92, 0.18, 0.28),
-		"border": Color(0.55, 0.72, 0.22, 0.9),
-	})
-	minimap.position = Vector2(208, 88)
-	minimap.enable_fog_of_war()
-	hud_layer.add_child(minimap)
-	_update_hud()
+	}, true, 4)
+	_update_hud_status()
 
 
 func _update_hud() -> void:
+	_update_hud_status()
 	if hud_layer:
-		hud_layer.update_echoes(echoes_collected, TOTAL_ECHOES)
 		hud_layer.update_light_charges(light_charges, MAX_CHARGES)
 
 

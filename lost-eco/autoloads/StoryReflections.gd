@@ -15,6 +15,10 @@ func get_enemy_hit() -> Dictionary:
 	return _REFLECTIONS.get("enemy_hit", {})
 
 
+func get_crystal_memory(index: int) -> Dictionary:
+	return _REFLECTIONS.get("zone3_memory_%d" % index, {})
+
+
 const _REFLECTIONS: Dictionary = {
 	"zone1_echo_1": {
 		"title": "Fragmento de memoria",
@@ -75,6 +79,21 @@ const _REFLECTIONS: Dictionary = {
 		"title": "Miedo propio",
 		"body": "La violencia escondía tu inseguridad.\nSoltar el arma es elegir otra forma de ser.",
 		"accent": Color(0.82, 0.62, 1.0),
+	},
+	"zone3_memory_1": {
+		"title": "Cristal 1",
+		"body": "Un mensaje borrado en el grupo:\n«solo es broma». Para Mateo no lo fue.",
+		"accent": Color(0.72, 0.88, 1.0),
+	},
+	"zone3_memory_2": {
+		"title": "Cristal 2",
+		"body": "La risa del pasillo cuando alguien tropezó.\nTú también reíste. El cristal no olvida.",
+		"accent": Color(0.72, 0.88, 1.0),
+	},
+	"zone3_memory_3": {
+		"title": "Cristal 3",
+		"body": "«No te metas» — dijiste para no molestar al grupo.\nElegir comodidad también lastima.",
+		"accent": Color(0.72, 0.88, 1.0),
 	},
 	"zone3_complete": {
 		"title": "Reflexión — Zona 3",

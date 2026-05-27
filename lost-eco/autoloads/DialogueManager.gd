@@ -5,7 +5,7 @@ signal dialogue_finished
 
 const FONT_PATH := "res://PatrickHand-Regular.ttf"
 const TITLE_FONT_PATH := "res://Fonts/AmaticSC-Bold.ttf"
-const CORNER_WIDTH := 148.0
+const CORNER_WIDTH := 76.0
 
 var dialogue_box: Control = null
 var current_lines: Array[String] = []
@@ -87,10 +87,10 @@ func show_zone_intro(title: String, objective: String, hint: String, accent: Col
 	_ensure_message_layer()
 	dismiss_zone_intro()
 
-	var banner := _build_compact_panel(title, objective, hint, accent, 11, 9)
+	var banner := _build_compact_panel(title, objective, hint, accent, 8, 7)
 	banner.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	banner.offset_left = 4.0
-	banner.offset_top = 52.0
+	banner.offset_left = 2.0
+	banner.offset_top = 36.0
 	banner.offset_right = 4.0 + CORNER_WIDTH
 	_message_layer.add_child(banner)
 	_active_banner = banner
@@ -124,12 +124,12 @@ func dismiss_zone_intro() -> void:
 	tween.tween_callback(banner.queue_free)
 
 
-func show_corner_notice(text: String, color: Color = Color(0.92, 0.90, 0.82), duration: float = 3.0) -> void:
-	_show_corner_panel("", text, color, duration, 9, false)
+func show_corner_notice(text: String, color: Color = Color(0.96, 0.94, 0.88), duration: float = 2.2) -> void:
+	_show_corner_panel("", text, color, duration, 7, false)
 
 
-func show_reflection(title: String, body: String, accent: Color, duration: float = 4.5) -> void:
-	_show_corner_panel(title, body, accent, duration, 9, true)
+func show_reflection(title: String, body: String, accent: Color, duration: float = 3.5) -> void:
+	_show_corner_panel(title, body, accent, duration, 8, true)
 
 
 func show_floating_text(text: String, _world_position: Vector2 = Vector2.ZERO, color: Color = Color.WHITE, duration: float = 2.8) -> void:
@@ -153,7 +153,7 @@ func _show_corner_panel(title: String, body: String, accent: Color, duration: fl
 	panel.offset_left = 4.0
 	panel.offset_bottom = -4.0
 	panel.offset_right = 4.0 + CORNER_WIDTH
-	panel.offset_top = -52.0 if is_reflection else -38.0
+	panel.offset_top = -30.0 if is_reflection else -22.0
 	_message_layer.add_child(panel)
 	_corner_panel = panel
 
@@ -192,7 +192,7 @@ func _ensure_message_layer() -> void:
 	if _message_layer and is_instance_valid(_message_layer):
 		return
 	_message_layer = CanvasLayer.new()
-	_message_layer.layer = 90
+	_message_layer.layer = 110
 	_message_layer.name = "MessageLayer"
 	add_child(_message_layer)
 
@@ -210,19 +210,19 @@ func _build_compact_panel(
 	panel.custom_minimum_size = Vector2(CORNER_WIDTH, 0)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.02, 0.07, 0.94)
+	style.bg_color = Color(0.08, 0.06, 0.12, 0.96)
 	style.border_color = accent
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	style.shadow_color = Color(0, 0, 0, 0.6)
-	style.shadow_size = 3
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.shadow_color = Color(0, 0, 0, 0.75)
+	style.shadow_size = 4
 	panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_bottom", 4)
+	margin.add_theme_constant_override("margin_left", 4)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_right", 4)
+	margin.add_theme_constant_override("margin_bottom", 3)
 	panel.add_child(margin)
 
 	var box := VBoxContainer.new()
@@ -235,7 +235,7 @@ func _build_compact_panel(
 		box.add_child(title_label)
 
 	if not body.is_empty():
-		var body_label := _make_ui_label(body, Color(0.94, 0.92, 0.86), body_size, _ui_font, HORIZONTAL_ALIGNMENT_LEFT)
+		var body_label := _make_ui_label(body, Color(0.98, 0.96, 0.90), body_size, _ui_font, HORIZONTAL_ALIGNMENT_LEFT)
 		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(body_label)
 
@@ -252,7 +252,7 @@ func _make_ui_label(text: String, color: Color, size: int, font: Font, align: Ho
 	label.text = text
 	label.horizontal_alignment = align
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.add_theme_font_size_override("font_size", size)

@@ -399,19 +399,17 @@ func _setup_fog() -> void:
 			fog_material.set_shader_parameter("light_radius", 0.44)
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
+var _map_layer: CanvasLayer = null
+
 func _setup_hud() -> void:
-	hud_layer = ZoneVisualBootstrap.create_hud(self, "ZONA 1 — Laberinto", MAX_CHARGES)
-	minimap = ZoneMinimap.new()
-	minimap.setup(MAP, {
-		"floor": FLOOR_COLOR,
-		"wall": WALL_COLOR,
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z1 Laberinto", MAX_CHARGES)
+	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
+		"floor": FLOOR_COLOR.lightened(0.15),
+		"wall": WALL_COLOR.lightened(0.12),
 		"echo": ECHO_COLOR,
 		"exit": EXIT_OPEN_COLOR,
-		"enemy": Color(0.92, 0.18, 0.28),
-	})
-	minimap.position = Vector2(208, 88)
-	minimap.enable_fog_of_war()
-	hud_layer.add_child(minimap)
+		"enemy": Color(0.95, 0.32, 0.38),
+	}, true, 4)
 	_update_hud()
 
 func _update_hud() -> void:
