@@ -253,12 +253,13 @@ func _spawn_enemies() -> void:
 
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
-	var sprite_key := "ahogados" if idx % 2 == 0 else "hombre_lodo"
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"sprite": sprite_key,
-		"glow": ENEMY_GLOW_COLOR,
-		"pulse": Color(0.55, 1.35, 0.45),
-		"scale": 1.0,
+		"body": Color(0.18, 0.55, 0.14),
+		"glow": Color(0.40, 0.85, 0.30, 0.55),
+		"pulse": Color(0.65, 1.6, 0.55),
+		"eyes": Color(0.90, 1.0, 0.55),
+		"wisp": Color(0.12, 0.30, 0.08, 0.75),
+		"scale": 0.90,
 	})
 
 	var area = Area2D.new()

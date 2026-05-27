@@ -1,81 +1,110 @@
 extends RefCounted
 class_name CharacterArt
-## Recorta sprites del sheet de personajes y enemigos del juego.
-## Carga perezosa: no usa preload para evitar errores si Godot aún no importó las PNG.
+## Sprites embebidos en el proyecto (funcionan aunque OneDrive bloquee archivos).
 
-const CHAR_SHEET_PATH := "res://assets/sprites/characters_enemies_sheet.png"
-const RUN_SHEET_PATH := "res://assets/sprites/sprites_running_sheet.png"
+const SPRITE_DIR := "res://assets/sprites/"
 
-static var _char_sheet: Texture2D
-static var _run_sheet: Texture2D
-static var _load_attempted: bool = false
-
-# Hoja de concepto: fila superior = héroes, fila inferior = enemigos (1024×682)
-const REGIONS: Dictionary = {
-	"alex": Rect2(384, 8, 118, 300),
-	"exploradora": Rect2(0, 8, 138, 300),
-	"monje": Rect2(146, 8, 138, 300),
-	"medium": Rect2(292, 8, 138, 300),
-	"niña_perdida": Rect2(730, 8, 138, 300),
-	"susurrantes": Rect2(0, 350, 120, 310),
-	"parasito": Rect2(128, 350, 120, 310),
-	"ahogados": Rect2(256, 350, 120, 310),
-	"hombre_lodo": Rect2(384, 350, 120, 310),
-	"humo_negro": Rect2(512, 350, 120, 310),
-	"vigilantes": Rect2(640, 350, 120, 310),
-	"caballero": Rect2(768, 350, 120, 310),
-	"espectro": Rect2(896, 350, 120, 310),
+const SPRITE_FILES: Dictionary = {
+	"alex": "alex.png",
+	"exploradora": "exploradora.png",
+	"monje": "monje.png",
+	"medium": "medium.png",
+	"cazador": "cazador.png",
+	"tirador": "tirador.png",
+	"niña_perdida": "nina_perdida.png",
+	"navegante": "navegante.png",
+	"susurrantes": "susurrantes.png",
+	"parasito": "parasito.png",
+	"ahogados": "ahogados.png",
+	"hombre_lodo": "hombre_lodo.png",
+	"humo_negro": "humo_negro.png",
+	"vigilantes": "vigilantes.png",
+	"caballero": "caballero.png",
+	"espectro": "espectro.png",
 }
 
 const DEFAULT_SCALE: Dictionary = {
-	"alex": 0.11,
-	"susurrantes": 0.10,
-	"parasito": 0.10,
-	"ahogados": 0.10,
-	"hombre_lodo": 0.095,
-	"humo_negro": 0.10,
-	"vigilantes": 0.10,
-	"caballero": 0.11,
-	"espectro": 0.10,
+	"alex": 0.16,
+	"susurrantes": 0.14,
+	"parasito": 0.14,
+	"ahogados": 0.14,
+	"hombre_lodo": 0.13,
+	"humo_negro": 0.14,
+	"vigilantes": 0.14,
+	"caballero": 0.15,
+	"espectro": 0.14,
 }
+
+static var _cache: Dictionary = {}
+
+
+static func clear_cache() -> void:
+	_cache.clear()
 
 
 static func is_ready() -> bool:
-	_ensure_sheets()
-	return _char_sheet != null
-
-
-static func _ensure_sheets() -> void:
-	if _load_attempted:
-		return
-	_load_attempted = true
-	if ResourceLoader.exists(CHAR_SHEET_PATH):
-		_char_sheet = load(CHAR_SHEET_PATH) as Texture2D
-	if ResourceLoader.exists(RUN_SHEET_PATH):
-		_run_sheet = load(RUN_SHEET_PATH) as Texture2D
-	if _char_sheet == null:
-		push_warning("CharacterArt: abre el proyecto en Godot para importar %s" % CHAR_SHEET_PATH)
+	return make_sprite("alex") != null
 
 
 static func make_sprite(key: String, scale_override: float = -1.0) -> Sprite2D:
-	_ensure_sheets()
-	var sheet: Texture2D = _run_sheet if key == "alex_run" else _char_sheet
-	if sheet == null:
+	var tex := _load_texture(key)
+	if tex == null:
 		return null
-
-	var region: Rect2 = REGIONS.get(key, REGIONS["susurrantes"])
-	var atlas := AtlasTexture.new()
-	atlas.atlas = sheet
-	if key == "alex_run":
-		atlas.region = Rect2(384, 8, 118, 140)
-	else:
-		atlas.region = region
 
 	var sprite := Sprite2D.new()
 	sprite.name = "Sprite"
-	sprite.texture = atlas
+	sprite.texture = tex
 	sprite.centered = true
-	var scale_val: float = scale_override if scale_override > 0.0 else DEFAULT_SCALE.get(key, 0.10)
+	var scale_val: float = scale_override if scale_override > 0.0 else DEFAULT_SCALE.get(key, 0.14)
 	sprite.scale = Vector2(scale_val, scale_val)
-	sprite.offset = Vector2(0, -region.size.y * scale_val * 0.35)
+	var h := tex.get_height() * scale_val
+	sprite.offset = Vector2(0, -h * 0.30)
 	return sprite
+
+
+static func _load_texture(key: String) -> Texture2D:
+	if _cache.has(key):
+		return _cache[key]
+
+	var tex := _load_embedded(key)
+	if tex == null:
+		tex = _load_from_disk(key)
+	if tex:
+		_cache[key] = tex
+	return tex
+
+
+static func _load_embedded(key: String) -> Texture2D:
+	if not CharacterSpritesData.EMBEDDED.has(key):
+		return null
+	var raw := Marshalls.base64_to_raw(CharacterSpritesData.EMBEDDED[key])
+	var img := Image.new()
+	if img.load_png_from_buffer(raw) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
+
+
+static func _load_from_disk(key: String) -> Texture2D:
+	var file_name: String = SPRITE_FILES.get(key, "")
+	if file_name.is_empty():
+		return null
+	var img := _read_png_image(SPRITE_DIR + file_name)
+	if img == null:
+		return null
+	return ImageTexture.create_from_image(img)
+
+
+static func _read_png_image(resource_path: String) -> Image:
+	var paths: Array[String] = [resource_path]
+	var abs := ProjectSettings.globalize_path(resource_path)
+	if not abs.is_empty():
+		paths.append(abs)
+	for path in paths:
+		var img := Image.new()
+		if img.load(path) == OK:
+			return img
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file:
+			if img.load_png_from_buffer(file.get_buffer(file.get_length())) == OK:
+				return img
+	return null

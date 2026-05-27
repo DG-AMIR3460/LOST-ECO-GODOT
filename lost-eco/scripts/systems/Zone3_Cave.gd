@@ -229,20 +229,22 @@ func _spawn_boss(pos: Vector2) -> void:
 	_boss_node.add_to_group("mirror_boss")
 	add_child(_boss_node)
 
-	var boss_sprite := CharacterArt.make_sprite("espectro", 0.14)
-	if boss_sprite:
-		boss_sprite.name = "BossSprite"
-		_boss_node.add_child(boss_sprite)
-		_boss_sprite = boss_sprite
-	else:
-		var poly := Polygon2D.new()
-		poly.polygon = PackedVector2Array([
-			Vector2(0, -10), Vector2(8, -4), Vector2(6, 8),
-			Vector2(-6, 8), Vector2(-8, -4)
+	var boss_poly := Polygon2D.new()
+	boss_poly.polygon = PackedVector2Array([
+		Vector2(0, -12), Vector2(10, -5), Vector2(8, 10),
+		Vector2(-8, 10), Vector2(-10, -5)
+	])
+	boss_poly.color = Color(0.45, 0.15, 0.65)
+	_boss_node.add_child(boss_poly)
+	_boss_sprite = boss_poly
+
+	for ox in [-4, 2]:
+		var eye := Polygon2D.new()
+		eye.polygon = PackedVector2Array([
+			Vector2(ox, -5), Vector2(ox + 2, -5), Vector2(ox + 2, -3), Vector2(ox, -3)
 		])
-		poly.color = Color(0.25, 0.10, 0.40)
-		_boss_node.add_child(poly)
-		_boss_sprite = poly
+		eye.color = Color(1.0, 0.85, 1.0)
+		_boss_node.add_child(eye)
 
 	if _boss_sprite:
 		_boss_tween = create_tween().set_loops()
@@ -325,12 +327,13 @@ func _spawn_enemies() -> void:
 
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
-	var sprite_keys := ["espectro", "humo_negro", "vigilantes", "parasito", "espectro"]
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"sprite": sprite_keys[idx % sprite_keys.size()],
+		"body": Color(0.85, 0.72, 0.12),
 		"glow": ENEMY_GLOW_COLOR,
-		"pulse": Color(1.55, 1.35, 0.35),
-		"scale": 1.0,
+		"pulse": Color(1.9, 1.5, 0.40),
+		"eyes": Color(1.0, 0.92, 0.35),
+		"wisp": Color(0.35, 0.28, 0.06, 0.75),
+		"scale": 0.90,
 	})
 
 	var area = Area2D.new()

@@ -8,9 +8,9 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1wbyk"]
 shader = ExtResource("2_nvdxt")
 shader_parameter/player_pos = Vector2(0.5, 0.5)
-shader_parameter/light_radius = 0.15
-shader_parameter/edge_softness = 0.08
-shader_parameter/fog_color = Color(0.1, 0.1, 0.18, 0.95)
+shader_parameter/light_radius = 0.44
+shader_parameter/edge_softness = 0.14
+shader_parameter/fog_color = Color(0.1, 0.1, 0.18, 0.78)
 
 [node name="Zone1_Labyrinth" type="Node2D" unique_id=7738304]
 script = ExtResource("1_30f01")

@@ -48,8 +48,8 @@ const FLOOR_COLOR       = Color(0.15, 0.12, 0.22)
 const ECHO_COLOR        = Color(0.9,  0.95, 0.5)
 const EXIT_LOCKED_COLOR = Color(0.28, 0.28, 0.35)
 const EXIT_OPEN_COLOR   = Color(0.15, 0.90, 0.45)
-const ENEMY_BODY_COLOR  = Color(0.55, 0.08, 0.12)
-const ENEMY_GLOW_COLOR  = Color(0.80, 0.20, 0.30, 0.35)
+const ENEMY_BODY_COLOR  = Color(0.82, 0.12, 0.18)
+const ENEMY_GLOW_COLOR  = Color(0.95, 0.30, 0.40, 0.55)
 
 var walls:  Array = []
 var floors: Array = []
@@ -195,7 +195,7 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(100)
 	# Aumentar radio de visión en la niebla
 	if fog_material:
-		var r = 0.12 + echoes_collected * 0.05
+		var r = 0.44 + echoes_collected * 0.04
 		create_tween().tween_method(
 			func(v): fog_material.set_shader_parameter("light_radius", v),
 			fog_material.get_shader_parameter("light_radius"), r, 1.5
@@ -273,10 +273,12 @@ func _spawn_enemies() -> void:
 
 func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	var enemy := ShadowEnemyVisual.create(self, world_pos, {
-		"sprite": "susurrantes",
+		"body": ENEMY_BODY_COLOR,
 		"glow": ENEMY_GLOW_COLOR,
-		"pulse": Color(1.55, 0.35, 0.40),
-		"scale": 1.0,
+		"pulse": Color(1.8, 0.45, 0.50),
+		"eyes": Color(1.0, 0.95, 0.90),
+		"wisp": Color(0.45, 0.08, 0.14, 0.75),
+		"scale": 0.90,
 	})
 
 	# Área de daño
@@ -412,7 +414,7 @@ func _setup_fog() -> void:
 		if fog_material:
 			fog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			fog_material.set_shader_parameter("player_pos",  Vector2(0.5, 0.5))
-			fog_material.set_shader_parameter("light_radius", 0.16)
+			fog_material.set_shader_parameter("light_radius", 0.44)
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
 func _setup_hud() -> void:
