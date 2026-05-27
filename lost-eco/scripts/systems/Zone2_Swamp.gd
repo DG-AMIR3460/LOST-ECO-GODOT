@@ -41,7 +41,7 @@ var echoes_collected: int = 0
 const TOTAL_ECHOES = 3
 var pillars_activated: int = 0
 const TOTAL_PILLARS = 3
-const PILLAR_HOLD_TIME := 1.8
+const PILLAR_HOLD_TIME := 0.8
 
 var pillars: Array = []
 var _near_pillar: Dictionary = {}
@@ -220,7 +220,7 @@ func _spawn_pillar(pos: Vector2) -> void:
 	s.radius = 11
 	c.shape = s
 	area.add_child(c)
-	pillars.append({"node": node, "poly": poly, "area": area, "done": false})
+	pillars.append({"node": node, "poly": poly, "area": area, "done": false, "pos": center})
 
 
 func _update_hud_status() -> void:
@@ -337,6 +337,7 @@ func _try_pillar_interact() -> void:
 	if _near_pillar.is_empty() or _near_pillar.get("done", true):
 		return
 	_pillar_hold = 0.0
+	DialogueManager.show_corner_notice("Mantén [E] para activar el Pilar...", Color(0.75, 0.98, 0.5), 1.0)
 
 
 func _activate_pillar(pillar: Dictionary) -> void:
@@ -347,6 +348,8 @@ func _activate_pillar(pillar: Dictionary) -> void:
 	var poly: Polygon2D = pillar.get("poly")
 	if poly:
 		poly.color = Color(0.55, 0.95, 0.45)
+	if minimap:
+		minimap.mark_pillar_activated_at(pillar.get("pos", Vector2.ZERO), TS)
 	GameManager.add_score(80)
 	DialogueManager.show_corner_notice(
 		"Pilar activado (%d/%d) — la paciencia abre caminos." % [pillars_activated, TOTAL_PILLARS],
@@ -361,11 +364,12 @@ func _update_near_pillar() -> void:
 	_near_pillar = {}
 	if GameManager.player == null:
 		return
+	var player_pos := GameManager.player.global_position
 	for p in pillars:
 		if p.get("done", false):
 			continue
-		var area: Area2D = p.get("area")
-		if is_instance_valid(area) and area.overlaps_body(GameManager.player):
+		var pillar_pos: Vector2 = p.get("pos", Vector2(-99999, -99999))
+		if player_pos.distance_to(pillar_pos) <= 20.0:
 			_near_pillar = p
 			return
 
@@ -429,10 +433,19 @@ func _process(delta: float) -> void:
 	_update_near_pillar()
 	if not _near_pillar.is_empty() and not _near_pillar.get("done", true):
 		if Input.is_action_pressed("interact"):
+			var prev := _pillar_hold
 			_pillar_hold += delta
 			if _pillar_hold >= PILLAR_HOLD_TIME:
 				_activate_pillar(_near_pillar)
 				_pillar_hold = 0.0
+			else:
+				var pct := int(_pillar_hold / PILLAR_HOLD_TIME * 100.0)
+				var prev_pct := int(prev / PILLAR_HOLD_TIME * 100.0)
+				if pct / 25 != prev_pct / 25:
+					DialogueManager.show_corner_notice(
+						"Activando Pilar... %d%%" % pct,
+						Color(0.7, 1.0, 0.45), 0.5
+					)
 		else:
 			_pillar_hold = 0.0
 	else:

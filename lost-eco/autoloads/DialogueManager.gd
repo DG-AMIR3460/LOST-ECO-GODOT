@@ -6,6 +6,7 @@ signal dialogue_finished
 const FONT_PATH := "res://PatrickHand-Regular.ttf"
 const TITLE_FONT_PATH := "res://Fonts/AmaticSC-Bold.ttf"
 const CORNER_WIDTH := 76.0
+const REFLECTION_WIDTH := 130.0
 const INTRO_WIDTH := 220.0
 
 var dialogue_box: Control = null
@@ -168,7 +169,7 @@ func show_corner_notice(text: String, color: Color = Color(0.96, 0.94, 0.88), du
 
 
 func show_reflection(title: String, body: String, accent: Color, duration: float = 3.5) -> void:
-	_show_corner_panel(title, body, accent, duration, 8, true)
+	_show_corner_panel(title, body, accent, duration, 6, true)
 
 
 func show_floating_text(text: String, _world_position: Vector2 = Vector2.ZERO, color: Color = Color.WHITE, duration: float = 2.8) -> void:
@@ -187,12 +188,17 @@ func _show_corner_panel(title: String, body: String, accent: Color, duration: fl
 	if _corner_tween and _corner_tween.is_valid():
 		_corner_tween.kill()
 
-	var panel := _build_compact_panel(title, body, "", accent, font_size + 1 if is_reflection else font_size, font_size, is_reflection)
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	panel.offset_left = 4.0
-	panel.offset_bottom = -4.0
-	panel.offset_right = 4.0 + CORNER_WIDTH
-	panel.offset_top = -30.0 if is_reflection else -22.0
+	var ts := font_size + 1 if is_reflection else font_size
+	var pw := REFLECTION_WIDTH if is_reflection else CORNER_WIDTH
+	var panel := _build_compact_panel(title, body, "", accent, ts, font_size, is_reflection)
+
+	# Measure actual text height so the panel never clips or goes off-screen.
+	var vp := get_viewport().get_visible_rect().size
+	var ph := minf(_measure_panel_height(title, body, is_reflection, ts, font_size, pw), vp.y * 0.40)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.size = Vector2(pw, ph)
+	panel.position = Vector2(4.0, maxf(2.0, vp.y - ph - 4.0))
+
 	_message_layer.add_child(panel)
 	_corner_panel = panel
 
@@ -207,6 +213,23 @@ func _show_corner_panel(title: String, body: String, accent: Color, duration: fl
 		if is_instance_valid(panel):
 			panel.queue_free()
 	)
+
+
+func _measure_panel_height(title: String, body: String, is_reflection: bool, title_size: int, body_size: int, panel_width: float) -> float:
+	# horizontal overhead = margins(4+4) + borders(2+2) = 12px
+	var cw := panel_width - 12.0
+	# vertical overhead = margins(3+3) + borders(2+2) = 10px
+	var h := 10.0
+	var has_content := false
+	if not title.is_empty() and _title_font:
+		var prefix := "◆ " if is_reflection else ""
+		h += _title_font.get_multiline_string_size(prefix + title, HORIZONTAL_ALIGNMENT_LEFT, cw, title_size).y
+		has_content = true
+	if not body.is_empty() and _ui_font:
+		if has_content:
+			h += 1.0  # VBox separation
+		h += _ui_font.get_multiline_string_size(body, HORIZONTAL_ALIGNMENT_LEFT, cw, body_size).y
+	return h + 6.0  # safety margin
 
 
 func _build_intro_panel(
@@ -285,8 +308,9 @@ func _build_compact_panel(
 	body_size: int,
 	is_reflection: bool = false
 ) -> PanelContainer:
+	var pw := REFLECTION_WIDTH if is_reflection else CORNER_WIDTH
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(CORNER_WIDTH, 0)
+	panel.custom_minimum_size = Vector2(pw, 0)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.06, 0.12, 0.96)

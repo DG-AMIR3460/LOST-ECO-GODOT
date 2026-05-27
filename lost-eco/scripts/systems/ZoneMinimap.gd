@@ -3,10 +3,10 @@ class_name ZoneMinimap
 ## Minimapa compacto con niebla de exploración (se descubre al caminar).
 
 
-const TILE_PX := 1.5
+const TILE_PX := 2.0
 const PADDING := 1.0
 const HEADER_H := 5.0
-const LEGEND_H := 5.0
+const LEGEND_H := 12.0
 
 var _map: Array = []
 var _cols: int = 0
@@ -14,6 +14,8 @@ var _rows: int = 0
 var _echo_tiles: Array[Vector2i] = []
 var _collected_echoes: Array[Vector2i] = []
 var _enemy_tiles: Array[Vector2i] = []
+var _pillar_tiles: Array[Vector2i] = []
+var _activated_pillars: Array[Vector2i] = []
 var _exit_tile: Vector2i = Vector2i(-1, -1)
 var _boss_tile: Vector2i = Vector2i(-1, -1)
 
@@ -23,6 +25,7 @@ var _player_color: Color = Color(0.45, 0.88, 1.0)
 var _echo_color: Color = Color(0.98, 0.92, 0.38)
 var _exit_color: Color = Color(0.28, 0.92, 0.48)
 var _enemy_color: Color = Color(0.95, 0.32, 0.38)
+var _pillar_color: Color = Color(0.90, 0.62, 0.22)
 var _border_color: Color = Color(0.90, 0.78, 0.35, 0.95)
 var _fog_undiscovered: Color = Color(0.04, 0.03, 0.07, 0.95)
 
@@ -58,6 +61,8 @@ func setup(map: Array, colors: Dictionary = {}, _compact: bool = true) -> void:
 	_echo_tiles.clear()
 	_collected_echoes.clear()
 	_enemy_tiles.clear()
+	_pillar_tiles.clear()
+	_activated_pillars.clear()
 	for y in _rows:
 		for x in _cols:
 			match map[y][x]:
@@ -67,6 +72,8 @@ func setup(map: Array, colors: Dictionary = {}, _compact: bool = true) -> void:
 					_exit_tile = Vector2i(x, y)
 				"B":
 					_boss_tile = Vector2i(x, y)
+				"P":
+					_pillar_tiles.append(Vector2i(x, y))
 
 	_recalc_size()
 	queue_redraw()
@@ -143,6 +150,18 @@ func mark_echo_collected_at(world_pos: Vector2, tile_size: float) -> void:
 	queue_redraw()
 
 
+func mark_pillar_activated_at(world_pos: Vector2, tile_size: float) -> void:
+	if tile_size <= 0.0:
+		return
+	var tile := Vector2i(
+		int(floor(world_pos.x / tile_size)),
+		int(floor(world_pos.y / tile_size))
+	)
+	if tile not in _activated_pillars:
+		_activated_pillars.append(tile)
+	queue_redraw()
+
+
 func set_enemy_tiles(tiles: Array[Vector2i]) -> void:
 	_enemy_tiles = tiles
 	queue_redraw()
@@ -184,6 +203,15 @@ func _draw() -> void:
 			continue
 		var pulse_a := 0.65 + sin(_pulse + t.x * 0.4 + t.y * 0.3) * 0.35
 		_draw_echo_marker(_tile_center(t), Color(_echo_color.r, _echo_color.g, _echo_color.b, pulse_a))
+
+	for t in _pillar_tiles:
+		if not _is_discovered(t):
+			continue
+		var pc := _pillar_color.lightened(0.35) if t in _activated_pillars else _pillar_color
+		var pa := 0.55 if t in _activated_pillars else (0.55 + sin(_pulse * 1.2 + t.x + t.y) * 0.35)
+		var center_p := _tile_center(t)
+		draw_circle(center_p, TILE_PX * 0.52, Color(pc.r, pc.g, pc.b, pa * 0.45))
+		draw_circle(center_p, TILE_PX * 0.30, Color(pc.r, pc.g, pc.b, pa))
 
 	if _exit_tile.x >= 0 and (_is_discovered(_exit_tile) or _exit_open):
 		var exit_c := _exit_color if _exit_open else Color(0.38, 0.38, 0.45)
@@ -244,17 +272,26 @@ func _draw_enemy_marker(center: Vector2) -> void:
 
 
 func _draw_legend(origin: Vector2) -> void:
-	var items: Array = [
-		[_player_color, "Tú"],
+	var lc := Color(0.86, 0.86, 0.92)
+	var row1: Array = [
+		[_player_color, "Tu"],
 		[_echo_color, "E"],
 		[_exit_color, "X"],
-		[_enemy_color, "·"],
 	]
 	var x := origin.x
-	for item in items:
-		draw_circle(Vector2(x + 1.5, origin.y + 3.5), 1.2, item[0])
-		_draw_label(Vector2(x + 4.0, origin.y), item[1], Color(0.78, 0.78, 0.85), 5)
-		x += 11.0
+	for item in row1:
+		draw_circle(Vector2(x + 2.0, origin.y + 3.5), 1.8, item[0])
+		_draw_label(Vector2(x + 5.0, origin.y), item[1], lc, 7)
+		x += 17.0
+
+	var row2: Array = [[_enemy_color, "!"]]
+	if not _pillar_tiles.is_empty():
+		row2.append([_pillar_color, "P"])
+	x = origin.x
+	for item in row2:
+		draw_circle(Vector2(x + 2.0, origin.y + 9.5), 1.8, item[0])
+		_draw_label(Vector2(x + 5.0, origin.y + 6.0), item[1], lc, 7)
+		x += 17.0
 
 
 func _draw_label(pos: Vector2, text: String, color: Color, font_size: int) -> void:

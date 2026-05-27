@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://esbpwwx82fy2"]
 
-[ext_resource type="Script" path="res://scripts/menu/menu.gd" id="1_menu"]
+[ext_resource type="Script" uid="uid://cl4qmiornhl8a" path="res://scripts/menu/menu.gd" id="1_menu"]
 [ext_resource type="Texture2D" uid="uid://ca6rno3gij2ws" path="res://IMAGENES/ChatGPT Image 22 may 2026, 14_54_03.png" id="2_bg"]
 [ext_resource type="FontFile" uid="uid://b8dlcecp7tks6" path="res://Fonts/AmaticSC-Bold.ttf" id="3_font_title"]
 [ext_resource type="FontFile" uid="uid://dq4dx2fbhaqe6" path="res://PatrickHand-Regular.ttf" id="4_font_btn"]
-[ext_resource type="Script" path="res://scripts/menu/menu_button.gd" id="5_btn_script"]
+[ext_resource type="Script" uid="uid://bi7ufgp6bjukn" path="res://scripts/menu/menu_button.gd" id="5_btn_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_plank"]
 bg_color = Color(0.36, 0.24, 0.12, 0.72)
@@ -40,12 +40,12 @@ Button/colors/font_color = Color(0.96, 0.9, 0.72, 1)
 Button/colors/font_hover_color = Color(1, 0.95, 0.55, 1)
 Button/colors/font_pressed_color = Color(0.85, 0.75, 0.45, 1)
 Button/font_sizes/font_size = 14
-Button/styles/normal = SubResource("StyleBoxFlat_plank")
-Button/styles/hover = SubResource("StyleBoxFlat_plank_hover")
-Button/styles/pressed = SubResource("StyleBoxFlat_plank_hover")
 Button/styles/focus = SubResource("StyleBoxFlat_plank")
+Button/styles/hover = SubResource("StyleBoxFlat_plank_hover")
+Button/styles/normal = SubResource("StyleBoxFlat_plank")
+Button/styles/pressed = SubResource("StyleBoxFlat_plank_hover")
 
-[node name="Menu" type="Control"]
+[node name="Menu" type="Control" unique_id=837393404]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -55,7 +55,7 @@ grow_vertical = 2
 theme = SubResource("Theme_menu")
 script = ExtResource("1_menu")
 
-[node name="Background" type="TextureRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=342871797]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -66,7 +66,7 @@ texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Title" type="Label" parent="."]
+[node name="Title" type="Label" parent="." unique_id=1070861099]
 layout_mode = 0
 offset_left = 8.0
 offset_top = 6.0
@@ -81,7 +81,7 @@ theme_override_font_sizes/font_size = 28
 text = "LOST ECO"
 horizontal_alignment = 1
 
-[node name="Buttons" type="VBoxContainer" parent="."]
+[node name="Buttons" type="VBoxContainer" parent="." unique_id=2128132101]
 layout_mode = 0
 offset_left = 224.0
 offset_top = 48.0
@@ -89,28 +89,21 @@ offset_right = 312.0
 offset_bottom = 132.0
 theme_override_constants/separation = 6
 
-[node name="Jugar" type="Button" parent="Buttons"]
+[node name="Jugar" type="Button" parent="Buttons" unique_id=953532789]
 custom_minimum_size = Vector2(88, 22)
 layout_mode = 2
 focus_mode = 0
 text = "Jugar"
 script = ExtResource("5_btn_script")
 
-[node name="ElPantano" type="Button" parent="Buttons"]
-custom_minimum_size = Vector2(88, 22)
-layout_mode = 2
-focus_mode = 0
-text = "El Pantano"
-script = ExtResource("5_btn_script")
-
-[node name="Opciones" type="Button" parent="Buttons"]
+[node name="Opciones" type="Button" parent="Buttons" unique_id=1186573546]
 custom_minimum_size = Vector2(88, 22)
 layout_mode = 2
 focus_mode = 0
 text = "Opciones"
 script = ExtResource("5_btn_script")
 
-[node name="Salir" type="Button" parent="Buttons"]
+[node name="Salir" type="Button" parent="Buttons" unique_id=408871962]
 custom_minimum_size = Vector2(88, 22)
 layout_mode = 2
 focus_mode = 0
