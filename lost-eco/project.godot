@@ -99,10 +99,9 @@ dash={
 
 [rendering]
 
-2d/snap/snap_2d_transforms_to_pixel=false
-2d/use_pixel_snap=false
-lights_and_shadows/use_2d_soft_shadows=false
 textures/canvas_textures/default_texture_filter=0
-environment/defaults/default_clear_color=Color(0.03, 0.04, 0.07, 1)
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+environment/defaults/default_clear_color=Color(0.03, 0.04, 0.07, 1)
+2d/use_pixel_snap=false
+lights_and_shadows/use_2d_soft_shadows=false
