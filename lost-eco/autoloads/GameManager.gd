@@ -141,12 +141,15 @@ func request_zone_complete(
 	next_scene: String,
 	quest_id: String,
 	score_points: int,
-	empathy_delta: float
+	empathy_delta: float,
+	level_key: String = ""
 ) -> void:
 	if _zone_transition_running:
 		return
 	_zone_transition_running = true
-	_run_zone_complete_async(completed_zone, next_scene, quest_id, score_points, empathy_delta)
+	_run_zone_complete_async(
+		completed_zone, next_scene, quest_id, score_points, empathy_delta, level_key
+	)
 
 
 func _run_zone_complete_async(
@@ -154,7 +157,8 @@ func _run_zone_complete_async(
 	next_scene: String,
 	quest_id: String,
 	score_points: int,
-	empathy_delta: float
+	empathy_delta: float,
+	level_key: String = ""
 ) -> void:
 	on_zone_completed()
 	close_pause()
@@ -163,7 +167,11 @@ func _run_zone_complete_async(
 	QuestManager.advance_quest(quest_id)
 	update_empathy(empathy_delta)
 	add_score(score_points)
-	var refl := StoryReflections.get_zone_complete(completed_zone)
+	var refl := (
+		StoryReflections.get_level_complete(level_key)
+		if not level_key.is_empty()
+		else StoryReflections.get_zone_complete(completed_zone)
+	)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(
 			refl.title, refl.body + "\n+%d pts" % score_points, refl.accent, 2.5

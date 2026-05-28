@@ -933,5 +933,6 @@ func _zone_complete() -> void:
 		"res://scenes/cinematicas/rescue_cutscene.tscn",
 		"zone4",
 		700,
-		0.34
+		0.34,
+		"cave"
 	)

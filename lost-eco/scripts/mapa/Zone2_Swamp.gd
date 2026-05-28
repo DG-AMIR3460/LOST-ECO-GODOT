@@ -498,5 +498,5 @@ func _zone_complete() -> void:
 	if GameManager.player:
 		GameManager.player.set_speed_multiplier(1.0)
 	GameManager.request_zone_complete(
-		3, "res://scenes/world/Zone3_Cave.tscn", "zone3", 400, 0.33
+		3, "res://scenes/world/Zone3_Cave.tscn", "zone3", 400, 0.33, "swamp"
 	)

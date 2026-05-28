@@ -11,6 +11,10 @@ func get_zone_complete(zone: int) -> Dictionary:
 	return _REFLECTIONS.get("zone%d_complete" % zone, {})
 
 
+func get_level_complete(level_key: String) -> Dictionary:
+	return _REFLECTIONS.get("complete_%s" % level_key, {})
+
+
 func get_enemy_hit() -> Dictionary:
 	return _REFLECTIONS.get("enemy_hit", {})
 
@@ -35,8 +39,28 @@ const _REFLECTIONS: Dictionary = {
 		"body": "Perdonarse no es olvidar.\nEs dejar de huir de lo que hicimos.",
 		"accent": Color(0.50, 0.92, 0.85),
 	},
+	"complete_river": {
+		"title": "Reflexión — El Río",
+		"body": "Cruzaste el río con paciencia.\nEl camino se abre: aún queda mucho por enfrentar.",
+		"accent": Color(0.45, 0.90, 0.75),
+	},
+	"complete_labyrinth": {
+		"title": "Reflexión — Laberinto de Palabras",
+		"body": "Las palabras que lanzamos sin pensar pueden perseguir a otros por años.\nLa luz no borra el pasado, pero ayuda a ver el daño que causamos.",
+		"accent": Color(0.95, 0.90, 0.50),
+	},
+	"complete_swamp": {
+		"title": "Reflexión — El Pantano",
+		"body": "Aprendiste que la empatía no es debilidad.\nEs atreverse a quedarse cuando huir sería más fácil.",
+		"accent": Color(0.55, 0.95, 0.45),
+	},
+	"complete_cave": {
+		"title": "Reflexión — Cueva del Espejo",
+		"body": "El monstruo era tu propio miedo reflejado.\nElegir la empatía sobre el ataque es el camino de regreso.",
+		"accent": Color(1.0, 0.85, 0.35),
+	},
 	"zone1_complete": {
-		"title": "Reflexión — Zona 1",
+		"title": "Reflexión — El Río",
 		"body": "Cruzaste el río con paciencia.\nEl camino se abre: aún queda mucho por enfrentar.",
 		"accent": Color(0.45, 0.90, 0.75),
 	},
@@ -61,7 +85,7 @@ const _REFLECTIONS: Dictionary = {
 		"accent": Color(0.95, 0.82, 0.45),
 	},
 	"zone2_complete": {
-		"title": "Reflexión — Zona 2",
+		"title": "Reflexión — Laberinto de Palabras",
 		"body": "Las palabras que lanzamos sin pensar pueden perseguir a otros por años.\nLa luz no borra el pasado, pero ayuda a ver el daño que causamos.",
 		"accent": Color(0.95, 0.90, 0.50),
 	},
@@ -81,7 +105,7 @@ const _REFLECTIONS: Dictionary = {
 		"accent": Color(0.65, 0.95, 0.50),
 	},
 	"zone3_complete": {
-		"title": "Reflexión — Zona 3",
+		"title": "Reflexión — El Pantano",
 		"body": "Aprendiste que la empatía no es debilidad.\nEs atreverse a quedarse cuando huir sería más fácil.",
 		"accent": Color(0.55, 0.95, 0.45),
 	},
@@ -116,7 +140,7 @@ const _REFLECTIONS: Dictionary = {
 		"accent": Color(0.72, 0.88, 1.0),
 	},
 	"zone4_complete": {
-		"title": "Reflexión — Zona 4",
+		"title": "Reflexión — Cueva del Espejo",
 		"body": "El monstruo era tu propio miedo reflejado.\nElegir la empatía sobre el ataque es el camino de regreso.",
 		"accent": Color(1.0, 0.85, 0.35),
 	},

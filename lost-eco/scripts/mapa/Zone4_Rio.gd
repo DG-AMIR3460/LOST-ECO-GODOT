@@ -393,5 +393,6 @@ func _zone_complete() -> void:
 		"res://scenes/world/Zone1_Labyrinth.tscn",
 		"zone1",
 		500,
-		0.33
+		0.33,
+		"river"
 	)

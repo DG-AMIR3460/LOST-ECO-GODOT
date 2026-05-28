@@ -419,7 +419,7 @@ func _zone_complete() -> void:
 	_transitioning = true
 	set_process(false)
 	GameManager.request_zone_complete(
-		2, "res://scenes/world/Zone2_Swamp.tscn", "zone2", 500, 0.33
+		2, "res://scenes/world/Zone2_Swamp.tscn", "zone2", 500, 0.33, "labyrinth"
 	)
 
 func _on_empathy_changed(v: float) -> void:
