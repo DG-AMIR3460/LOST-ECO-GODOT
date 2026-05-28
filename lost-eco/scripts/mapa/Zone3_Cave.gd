@@ -28,6 +28,8 @@ const SEAL_PULSE_RADIUS := 42.0
 
 var boss_unlocked: bool = false
 var boss_defeated: bool = false
+var boss_hp: float = 0.0
+var boss_max_hp: float = 0.0
 
 var memories: Array = []
 var seals: Array = []
@@ -57,16 +59,23 @@ const ENEMY_MSGS = [
 	"El miedo reflejado\nvuelve hacia ti.  -1 vida",
 ]
 
-var light_charges: int = 0
+var light_charges: int = 1
 const MAX_CHARGES: int = 3
 const PULSE_RADIUS: float = 62.0
 const STUN_TIME: float = 1.8
+const BOSS_PULSE_RANGE := 78.0
+const BOSS_CONTACT_RANGE := 24.0
+const BOSS_BOLT_SPEED := 56.0
+const BOSS_BOLT_LIFE := 3.2
 
 var _transitioning: bool = false
 var _event_timer: float = 22.0
 var _boss_data: Dictionary = {}
 var _boss_arena_active: bool = false
 var _boss_sequence_running: bool = false
+var _boss_attack_timer: float = 2.5
+var _boss_bolts: Array = []
+var _boss_damage_cd: float = 0.0
 var _arena_overlay: CanvasLayer = null
 
 var hud_layer: PremiumZoneHUD = null
@@ -97,7 +106,7 @@ func _ready() -> void:
 	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	ZoneMissionBriefs.show_for_zone(3)
+	ZoneMissionBriefs.show_for_zone(4)
 
 
 func _finish_player_setup() -> void:
@@ -106,8 +115,6 @@ func _finish_player_setup() -> void:
 	_atmosphere = setup.get("atmosphere") as GothicAtmosphere
 	if GameManager.player:
 		GameManager.player.has_weapon = false
-		if not GameManager.player.action_performed.is_connected(_on_player_peace_action):
-			GameManager.player.action_performed.connect(_on_player_peace_action)
 
 
 func _cache_spawn_tile() -> void:
@@ -123,11 +130,6 @@ func _configure_camera_limits() -> void:
 	var cam := get_node_or_null("Camera2D")
 	if cam and cam.has_method("set_map_limits"):
 		cam.set_map_limits(MAP[0].length() * TS, MAP.size() * TS)
-
-
-func _on_player_peace_action(action_name: String, _intensity: float) -> void:
-	if action_name == "drop_weapon":
-		_try_heal_boss()
 
 
 func _generate_map() -> void:
@@ -259,7 +261,7 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(150)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	var refl := StoryReflections.get_echo_reflection(3, echoes_collected)
+	var refl := StoryReflections.get_echo_reflection(4, echoes_collected)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
 	DialogueManager.show_corner_notice(
@@ -312,13 +314,15 @@ func _run_boss_arena_sequence() -> void:
 		await cam.focus_on(boss_center, 1.6)
 
 	MirrorBossVisual.play_awaken(self, _boss_data)
+	boss_max_hp = DifficultySettings.get_boss_max_hp()
+	boss_hp = boss_max_hp
+	_boss_attack_timer = 1.8
 	_boss_arena_active = true
 
 	await get_tree().create_timer(1.2).timeout
 
 	if GameManager.player and boss_center != Vector2.ZERO:
-		var safe := boss_center + Vector2(0, 28)
-		GameManager.player.global_position = safe
+		GameManager.player.global_position = _boss_player_spawn(boss_center)
 
 	await get_tree().create_timer(0.4).timeout
 
@@ -326,10 +330,11 @@ func _run_boss_arena_sequence() -> void:
 		GameManager.player.set_can_move(true)
 
 	DialogueManager.show_corner_notice(
-		"Sala del Espejo — [E] o [Q] para sanar al jefe.",
+		"Sala del Espejo — usa [J] cerca del jefe para dañarlo con pulsos de luz.",
 		Color(0.9, 0.78, 1.0),
-		4.0
+		4.5
 	)
+	_update_boss_hud_status()
 	_boss_sequence_running = false
 	_event_timer = 18.0
 
@@ -377,7 +382,7 @@ func _on_boss_body_entered(body: Node) -> void:
 		return
 	_boss_pulse()
 	DialogueManager.show_corner_notice(
-		"Jefe del espejo — [E] o [Q] para sanar (sin violencia).",
+		"Jefe del espejo — [J] pulso de luz para debilitarlo.",
 		Color(0.88, 0.72, 1.0),
 		3.5
 	)
@@ -405,30 +410,177 @@ func _try_heal_boss() -> void:
 			DialogueManager.show_corner_notice(_boss_lock_message(), Color(0.6, 0.5, 0.9), 2.5)
 		return
 	if not _is_player_near_boss():
-		DialogueManager.show_corner_notice(
-			"Entra a la Sala del Espejo (centro-abajo) y pulsa [E].",
-			Color(0.75, 0.65, 0.95),
-			2.5
-		)
 		return
-	_heal_boss(GameManager.player)
+	DialogueManager.show_corner_notice(
+		"Usa [J] — los pulsos de luz debilitan al jefe del espejo.",
+		Color(0.75, 0.65, 0.95),
+		2.5
+	)
+
+
+func _try_damage_boss_with_pulse(player_pos: Vector2) -> void:
+	if not boss_unlocked or boss_defeated:
+		return
+	var boss_center: Vector2 = _boss_data.get("center", Vector2.ZERO)
+	if boss_center == Vector2.ZERO:
+		return
+	if boss_center.distance_to(player_pos) > BOSS_PULSE_RANGE:
+		return
+	_damage_boss(DifficultySettings.get_boss_pulse_damage())
+
+
+func _damage_boss(amount: float) -> void:
+	if boss_defeated:
+		return
+	boss_hp = maxf(0.0, boss_hp - amount)
+	MirrorBossVisual.play_hit(self, _boss_data)
+	GameManager.add_score(int(amount * 4))
+	_update_boss_hud_status()
+	DialogueManager.show_corner_notice(
+		"¡Pulso impacta al jefe! (-%.0f)" % amount,
+		Color(0.95, 0.75, 1.0),
+		1.2
+	)
+	if boss_hp <= 0.0:
+		_defeat_boss()
 
 
 func _boss_pulse() -> void:
 	var sprite: CanvasItem = _boss_data.get("sprite")
 	if sprite == null:
 		return
-	var tween = create_tween().set_loops(8)
+	var tween = create_tween().set_loops(4)
 	tween.tween_property(sprite, "modulate", Color(1.8, 0.3, 2.0), 0.25)
 	tween.tween_property(sprite, "modulate", Color(1.0, 0.92, 1.2), 0.25)
 
 
-func _heal_boss(_player: Node) -> void:
+func _update_boss_hud_status() -> void:
+	if hud_layer == null:
+		return
+	if _boss_arena_active and not boss_defeated and boss_max_hp > 0.0:
+		hud_layer.update_status(
+			"JEFE %.0f/%.0f  — [J] pulso de luz" % [boss_hp, boss_max_hp]
+		)
+	else:
+		_update_hud_status()
+
+
+func _tick_boss_combat(delta: float, player_pos: Vector2) -> void:
+	if not _boss_arena_active or boss_defeated:
+		return
+	_boss_damage_cd = maxf(0.0, _boss_damage_cd - delta)
+	var boss_center: Vector2 = _boss_data.get("center", Vector2.ZERO)
+	if boss_center == Vector2.ZERO:
+		return
+
+	_boss_attack_timer -= delta
+	if _boss_attack_timer <= 0.0:
+		_boss_attack_timer = DifficultySettings.get_boss_attack_interval()
+		_boss_fire_bolt(boss_center, player_pos)
+
+	if _boss_damage_cd <= 0.0 and boss_center.distance_to(player_pos) <= BOSS_CONTACT_RANGE:
+		_boss_damage_cd = DifficultySettings.get_hit_cooldown(1.1)
+		_boss_hit_player(
+			GameManager.player,
+			"El reflejo te golpea de cerca.  -1 vida",
+			boss_center
+		)
+
+	_tick_boss_bolts(delta, player_pos)
+
+
+func _boss_fire_bolt(origin: Vector2, target: Vector2) -> void:
+	var dir := (target - origin).normalized()
+	if dir.length_squared() < 0.01:
+		dir = Vector2.DOWN
+	var bolt := Node2D.new()
+	bolt.name = "BossBolt"
+	bolt.global_position = origin + dir * 14.0
+	add_child(bolt)
+	var poly := Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(-4, -4), Vector2(4, -4), Vector2(4, 4), Vector2(-4, 4)
+	])
+	poly.color = Color(0.95, 0.25, 0.85, 0.95)
+	bolt.add_child(poly)
+	var area := Area2D.new()
+	area.collision_layer = 0
+	area.collision_mask = 1
+	area.monitoring = true
+	bolt.add_child(area)
+	var col := CollisionShape2D.new()
+	var shape := CircleShape2D.new()
+	shape.radius = 5.0
+	col.shape = shape
+	area.add_child(col)
+	_boss_bolts.append({
+		"node": bolt,
+		"area": area,
+		"dir": dir,
+		"life": BOSS_BOLT_LIFE,
+		"hit": false,
+	})
+
+
+func _tick_boss_bolts(delta: float, player_pos: Vector2) -> void:
+	var alive: Array = []
+	for bolt in _boss_bolts:
+		var node: Node2D = bolt.get("node")
+		if not is_instance_valid(node):
+			continue
+		bolt["life"] = bolt.get("life", 0.0) - delta
+		if bolt["life"] <= 0.0:
+			node.queue_free()
+			continue
+		var dir: Vector2 = bolt.get("dir", Vector2.ZERO)
+		node.global_position += dir * BOSS_BOLT_SPEED * delta
+		if not GridMapPhysics.is_walkable(node.global_position, 4.0):
+			node.queue_free()
+			continue
+		var area: Area2D = bolt.get("area")
+		if (
+			not bolt.get("hit", false)
+			and is_instance_valid(area)
+			and GameManager.player != null
+			and area.overlaps_body(GameManager.player)
+		):
+			bolt["hit"] = true
+			_boss_hit_player(
+				GameManager.player,
+				"Fragmento de espejo te atraviesa.  -1 vida",
+				node.global_position
+			)
+			node.queue_free()
+			continue
+		alive.append(bolt)
+	_boss_bolts = alive
+
+
+func _boss_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
+	if p == null or not p.is_in_group("player"):
+		return
+	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
+		return
+	p.set_meta("enemy_cd", DifficultySettings.get_hit_cooldown(1.2))
+	GameManager.take_damage()
+	if is_instance_valid(p):
+		p.take_hit(source_pos)
+		var hit := StoryReflections.get_enemy_hit()
+		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 2.5)
+
+
+func _defeat_boss() -> void:
 	if boss_defeated:
 		return
 	boss_defeated = true
+	_boss_arena_active = false
+	for bolt in _boss_bolts:
+		var node: Node2D = bolt.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
+	_boss_bolts.clear()
 	DialogueManager.show_reflection(
-		"Sanación",
+		"Victoria",
 		"El cristal se calienta... la oscuridad se disipa.",
 		Color(1.0, 0.85, 0.2), 3.0
 	)
@@ -492,6 +644,19 @@ func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 		DialogueManager.show_reflection(hit.title, message + "\n" + hit.body, hit.accent, 3.0)
 
 
+func _boss_player_spawn(boss_center: Vector2) -> Vector2:
+	var candidates: Array[Vector2] = [
+		boss_center + Vector2(0, -22),
+		boss_center + Vector2(-22, 0),
+		boss_center + Vector2(22, 0),
+		boss_center + Vector2(0, 18),
+	]
+	for pos: Vector2 in candidates:
+		if GridMapPhysics.is_walkable(pos, 5.0):
+			return pos
+	return boss_center + Vector2(0, -22)
+
+
 func _boss_lock_message() -> String:
 	return "Faltan: CRIST %d/%d  LUCES %d/%d  ECOS %d/%d" % [
 		memories_read, TOTAL_MEMORIES,
@@ -521,7 +686,6 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("drop_weapon"):
 		if GameManager.player and GameManager.player.has_method("peace_gesture"):
 			GameManager.player.peace_gesture()
-		_try_heal_boss()
 		get_viewport().set_input_as_handled()
 
 
@@ -539,10 +703,17 @@ func _use_light_pulse() -> void:
 		GameManager.add_score(removed * 50)
 
 	_try_light_seals(player_pos)
+	_try_damage_boss_with_pulse(player_pos)
 
-	DialogueManager.show_corner_notice("¡Pulso! Empuja enemigos (los círculos dorados usan [E]).", Color(0.9, 0.7, 1.0), 2.0)
+	if _boss_arena_active and boss_unlocked and not boss_defeated:
+		DialogueManager.show_corner_notice("¡Pulso! Mantente cerca del jefe para dañarlo.", Color(0.9, 0.7, 1.0), 2.0)
+	else:
+		DialogueManager.show_corner_notice("¡Pulso! Empuja enemigos (los círculos dorados usan [E]).", Color(0.9, 0.7, 1.0), 2.0)
 
-	await get_tree().create_timer(8.0).timeout
+	var recharge := 8.0
+	if _boss_arena_active and boss_unlocked and not boss_defeated:
+		recharge = 5.0
+	await get_tree().create_timer(recharge).timeout
 	if not _transitioning:
 		light_charges = min(light_charges + 1, MAX_CHARGES)
 		_update_hud()
@@ -594,7 +765,8 @@ func _try_interact() -> void:
 	if not _near_seal.is_empty() and not _near_seal.get("done", true):
 		_light_seal(_near_seal)
 		return
-	_try_heal_boss()
+	if boss_unlocked and not boss_defeated and _is_player_near_boss():
+		_try_heal_boss()
 
 
 func _update_near_seal() -> void:
@@ -667,6 +839,8 @@ func _process(delta: float) -> void:
 	if not _boss_arena_active:
 		for ed in enemies:
 			EnemyBehavior.tick(ed, player_pos, delta)
+	else:
+		_tick_boss_combat(delta, player_pos)
 
 	_update_minimap()
 	_update_near_memory()
@@ -682,7 +856,7 @@ func _update_boss_hint(delta: float) -> void:
 	if _is_player_near_boss():
 		_boss_hint_cd = 5.0
 		DialogueManager.show_corner_notice(
-			"¡Aquí! Pulsa [E] o [Q] para sanar al jefe.",
+			"¡Aquí! Pulsa [J] para debilitar al jefe con pulsos de luz.",
 			Color(0.9, 0.78, 1.0),
 			2.2
 		)
@@ -710,7 +884,7 @@ func _trigger_cave_echo() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z3 Cueva", MAX_CHARGES)
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z4 Cueva", MAX_CHARGES)
 	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": FLOOR_COLOR,
 		"wall": WALL_COLOR,
@@ -755,5 +929,9 @@ func _zone_complete() -> void:
 	set_process(false)
 	_update_hud()
 	GameManager.request_zone_complete(
-		3, "res://scenes/world/Zone4_Rio.tscn", "zone3", 700, 0.34
+		4,
+		"res://scenes/cinematicas/rescue_cutscene.tscn",
+		"zone4",
+		700,
+		0.34
 	)

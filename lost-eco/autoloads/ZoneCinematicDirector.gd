@@ -16,7 +16,7 @@ const CINEMATICS: Dictionary = {
 		"slides": [
 			{"kind": "title", "title": "LOST ECO", "subtitle": "Un bosque de palabras", "duration": 2.5},
 			{"kind": "quote", "speaker": "La Voz", "body": "Alex... el bosque guarda lo que dijiste\ny lo que no viste en los ojos de Mateo.", "duration": 3.2},
-			{"kind": "chapter", "title": "ZONA 1", "subtitle": "Laberinto de Palabras", "body": "Recoge 4 ecos de luz.\n[E] interactuar  [J] pulso de luz", "duration": 3.0},
+			{"kind": "chapter", "title": "ZONA 1", "subtitle": "El Río", "body": "3 ecos en la corriente.\n[E] interactuar  [J] pulso de luz", "duration": 3.0},
 		],
 	},
 	"bridge_1_2": {
@@ -24,9 +24,9 @@ const CINEMATICS: Dictionary = {
 		"accent": Color(0.65, 0.95, 0.50),
 		"skip_next_intro": false,
 		"slides": [
-			{"kind": "title", "title": "Zona superada", "subtitle": "Laberinto de Palabras", "duration": 2.2},
-			{"kind": "quote", "speaker": "La Voz", "body": "Escuchaste ecos ajenos.\nEl pantano te espera.", "duration": 3.0},
-			{"kind": "chapter", "title": "ZONA 2", "subtitle": "El Pantano", "body": "Pilares [E] + 3 ecos.", "duration": 2.8},
+			{"kind": "title", "title": "Zona superada", "subtitle": "El Río", "duration": 2.2},
+			{"kind": "quote", "speaker": "La Voz", "body": "Cruzaste la corriente.\nEl laberinto te espera.", "duration": 3.0},
+			{"kind": "chapter", "title": "ZONA 2", "subtitle": "Laberinto de Palabras", "body": "Recoge 4 ecos de luz.", "duration": 2.8},
 		],
 	},
 	"bridge_2_3": {
@@ -34,9 +34,9 @@ const CINEMATICS: Dictionary = {
 		"accent": Color(0.85, 0.70, 1.0),
 		"skip_next_intro": false,
 		"slides": [
-			{"kind": "title", "title": "Zona superada", "subtitle": "El Pantano", "duration": 2.2},
-			{"kind": "quote", "speaker": "La Voz", "body": "La paciencia abrió camino.\nMira tu reflejo en la cueva.", "duration": 3.0},
-			{"kind": "chapter", "title": "ZONA 3", "subtitle": "Cueva del Espejo", "body": "Cristales y sellos [E]. Jefe [E]/[Q].", "duration": 2.8},
+			{"kind": "title", "title": "Zona superada", "subtitle": "Laberinto de Palabras", "duration": 2.2},
+			{"kind": "quote", "speaker": "La Voz", "body": "Escuchaste ecos ajenos.\nEl pantano te espera.", "duration": 3.0},
+			{"kind": "chapter", "title": "ZONA 3", "subtitle": "El Pantano", "body": "Pilares [E] + 3 ecos.", "duration": 2.8},
 		],
 	},
 	"bridge_3_4": {
@@ -44,9 +44,9 @@ const CINEMATICS: Dictionary = {
 		"accent": Color(0.50, 0.88, 0.82),
 		"skip_next_intro": false,
 		"slides": [
-			{"kind": "title", "title": "Zona superada", "subtitle": "Cueva del Espejo", "duration": 2.2},
-			{"kind": "quote", "speaker": "La Voz", "body": "Elegiste empatía.\nEl río te lleva hacia Mateo.", "duration": 3.0},
-			{"kind": "chapter", "title": "ZONA 4", "subtitle": "El Río", "body": "3 ecos en la corriente.", "duration": 2.8},
+			{"kind": "title", "title": "Zona superada", "subtitle": "El Pantano", "duration": 2.2},
+			{"kind": "quote", "speaker": "La Voz", "body": "La paciencia abrió camino.\nMira tu reflejo en la cueva.", "duration": 3.0},
+			{"kind": "chapter", "title": "ZONA 4", "subtitle": "Cueva del Espejo", "body": "Cristales [E]. Derrota al jefe con [J].", "duration": 2.8},
 		],
 	},
 	"bridge_4_clearing": {
@@ -54,8 +54,8 @@ const CINEMATICS: Dictionary = {
 		"accent": Color(0.55, 0.92, 0.70),
 		"skip_next_intro": false,
 		"slides": [
-			{"kind": "title", "title": "Zona superada", "subtitle": "El Río", "duration": 2.2},
-			{"kind": "quote", "speaker": "La Voz", "body": "Sin más sombras.\nAlex encuentra a Mateo en el claro.", "duration": 3.2},
+			{"kind": "title", "title": "Zona superada", "subtitle": "Cueva del Espejo", "duration": 2.2},
+			{"kind": "quote", "speaker": "La Voz", "body": "Elegiste empatía.\nAlex encuentra a Mateo en el claro.", "duration": 3.2},
 			{"kind": "chapter", "title": "EL CLARO", "subtitle": "Final", "body": "Palabras honestas. Sin violencia.", "duration": 2.8},
 		],
 	},

@@ -84,7 +84,7 @@ func _build_level() -> void:
 	_configure_camera_limits()
 	_finish_player_setup()
 	await get_tree().create_timer(0.5).timeout
-	ZoneMissionBriefs.show_for_zone(1)
+	ZoneMissionBriefs.show_for_zone(2)
 
 
 func _finish_player_setup() -> void:
@@ -161,7 +161,7 @@ func _collect_echo(node: Node) -> void:
 	# +1 carga de luz
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	var refl := StoryReflections.get_echo_reflection(1, echoes_collected)
+	var refl := StoryReflections.get_echo_reflection(2, echoes_collected)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
 	DialogueManager.show_corner_notice(
@@ -374,7 +374,7 @@ func _setup_fog() -> void:
 var _map_layer: CanvasLayer = null
 
 func _setup_hud() -> void:
-	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z1 Laberinto", MAX_CHARGES)
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z2 Laberinto", MAX_CHARGES)
 	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": FLOOR_COLOR.lightened(0.15),
 		"wall": WALL_COLOR.lightened(0.12),
@@ -419,7 +419,7 @@ func _zone_complete() -> void:
 	_transitioning = true
 	set_process(false)
 	GameManager.request_zone_complete(
-		1, "res://scenes/world/Zone2_Swamp.tscn", "zone1", 500, 0.33
+		2, "res://scenes/world/Zone2_Swamp.tscn", "zone2", 500, 0.33
 	)
 
 func _on_empathy_changed(v: float) -> void:

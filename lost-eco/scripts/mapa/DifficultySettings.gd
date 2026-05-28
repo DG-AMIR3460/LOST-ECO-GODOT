@@ -78,6 +78,36 @@ static func get_light_radius_bonus() -> float:
 			return 0.0
 
 
+static func get_boss_max_hp() -> float:
+	match get_index():
+		SettingsManager.Difficulty.FACIL:
+			return 150.0
+		SettingsManager.Difficulty.DIFICIL:
+			return 260.0
+		_:
+			return 200.0
+
+
+static func get_boss_pulse_damage() -> float:
+	match get_index():
+		SettingsManager.Difficulty.FACIL:
+			return 12.0
+		SettingsManager.Difficulty.DIFICIL:
+			return 8.0
+		_:
+			return 10.0
+
+
+static func get_boss_attack_interval() -> float:
+	match get_index():
+		SettingsManager.Difficulty.FACIL:
+			return 3.8
+		SettingsManager.Difficulty.DIFICIL:
+			return 2.2
+		_:
+			return 3.0
+
+
 static func pick_enemy_tiles(map: Array, count: int, avoid: Vector2i, min_dist: float = 96.0) -> Array[Vector2i]:
 	var candidates: Array[Vector2i] = []
 	for y in map.size():

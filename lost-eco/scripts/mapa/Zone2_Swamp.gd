@@ -72,7 +72,7 @@ func _ready() -> void:
 	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	ZoneMissionBriefs.show_for_zone(2)
+	ZoneMissionBriefs.show_for_zone(3)
 
 
 func _finish_player_setup() -> void:
@@ -163,7 +163,7 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(120)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	var refl := StoryReflections.get_echo_reflection(2, echoes_collected)
+	var refl := StoryReflections.get_echo_reflection(3, echoes_collected)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
 	DialogueManager.show_corner_notice(
@@ -452,7 +452,7 @@ func _check_exit_overlap() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z2 Pantano", MAX_CHARGES)
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z3 Pantano", MAX_CHARGES)
 	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": MUD_COLOR,
 		"wall": WALL_COLOR,
@@ -498,5 +498,5 @@ func _zone_complete() -> void:
 	if GameManager.player:
 		GameManager.player.set_speed_multiplier(1.0)
 	GameManager.request_zone_complete(
-		2, "res://scenes/world/Zone3_Cave.tscn", "zone2", 400, 0.33
+		3, "res://scenes/world/Zone3_Cave.tscn", "zone3", 400, 0.33
 	)

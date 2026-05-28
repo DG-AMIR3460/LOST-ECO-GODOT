@@ -66,7 +66,7 @@ func _ready() -> void:
 	call_deferred("_finish_player_setup")
 
 	await get_tree().create_timer(0.5).timeout
-	ZoneMissionBriefs.show_for_zone(4)
+	ZoneMissionBriefs.show_for_zone(1)
 
 
 func _finish_player_setup() -> void:
@@ -155,7 +155,7 @@ func _collect_echo(node: Node) -> void:
 	GameManager.add_score(130)
 	light_charges = min(light_charges + 1, MAX_CHARGES)
 	_update_hud()
-	var refl := StoryReflections.get_echo_reflection(4, echoes_collected)
+	var refl := StoryReflections.get_echo_reflection(1, echoes_collected)
 	if not refl.is_empty():
 		DialogueManager.show_reflection(refl.title, refl.body, refl.accent, 3.5)
 	DialogueManager.show_corner_notice(
@@ -341,7 +341,7 @@ func _check_exit_overlap() -> void:
 
 
 func _setup_hud() -> void:
-	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z4 Río", MAX_CHARGES)
+	hud_layer = ZoneUIBootstrap.attach_hud(self, "Z1 Río", MAX_CHARGES)
 	minimap = ZoneUIBootstrap.attach_minimap(self, MAP, {
 		"floor": WATER_COLOR,
 		"wall": WALL_COLOR,
@@ -389,9 +389,9 @@ func _zone_complete() -> void:
 	if GameManager.player:
 		GameManager.player.set_speed_multiplier(1.0)
 	GameManager.request_zone_complete(
-		4,
-		"res://scenes/cinematicas/rescue_cutscene.tscn",
-		"zone4",
+		1,
+		"res://scenes/world/Zone1_Labyrinth.tscn",
+		"zone1",
 		500,
 		0.33
 	)

@@ -10,15 +10,15 @@ enum Difficulty { FACIL, NORMAL, DIFICIL }
 const SETTINGS_PATH := "user://settings.cfg"
 const MENU_SCENE := "res://scenes/menu.tscn"
 const OPTIONS_SCENE := "res://scenes/opciones.tscn"
-## Campaña completa: Laberinto → Pantano → Cueva → Río → Cinemática rescate
+## Campaña completa: Río → Laberinto → Pantano → Cueva → Cinemática rescate
 const CAMPAIGN_SCENES: Array[String] = [
+	"res://scenes/world/Zone4_Rio.tscn",
 	"res://scenes/world/Zone1_Labyrinth.tscn",
 	"res://scenes/world/Zone2_Swamp.tscn",
 	"res://scenes/world/Zone3_Cave.tscn",
-	"res://scenes/world/Zone4_Rio.tscn",
 	"res://scenes/cinematicas/rescue_cutscene.tscn",
 ]
-const GAME_SCENE := "res://scenes/world/Zone1_Labyrinth.tscn"
+const GAME_SCENE := "res://scenes/world/Zone4_Rio.tscn"
 const DEMO_PANTANO_SCENE := "res://scenes/core/pantano_world.tscn"
 
 ## Resolución interna del juego (viewport lógico). La ventana escala encima de esto.

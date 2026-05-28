@@ -128,6 +128,21 @@ static func play_heal(parent: Node, data: Dictionary) -> void:
 		tw.tween_property(root, "scale", Vector2(0.05, 0.05), 1.4)
 
 
+static func play_hit(parent: Node, data: Dictionary) -> void:
+	var sprite: CanvasItem = data.get("sprite")
+	var root: Node2D = data.get("node")
+	if sprite == null:
+		return
+	var tw := parent.create_tween()
+	tw.tween_property(sprite, "modulate", Color(2.2, 0.35, 2.4), 0.08)
+	tw.tween_property(sprite, "modulate", Color(1.0, 0.92, 1.2), 0.18)
+	if root:
+		var shake := parent.create_tween()
+		shake.tween_property(root, "position:x", root.position.x + 3.0, 0.05)
+		shake.tween_property(root, "position:x", root.position.x - 3.0, 0.05)
+		shake.tween_property(root, "position:x", root.position.x, 0.05)
+
+
 static func _ellipse_points(rx: float, ry: float, segments: int = 16) -> PackedVector2Array:
 	var pts: PackedVector2Array = []
 	for i in segments:
