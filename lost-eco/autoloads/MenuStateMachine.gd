@@ -62,13 +62,29 @@ func transition_to_game() -> void:
 	await _start_gameplay_scene(SettingsManager.GAME_SCENE)
 
 
+func begin_game_with_difficulty(difficulty_index: int) -> void:
+	SettingsManager.set_difficulty_index(
+		clampi(difficulty_index, SettingsManager.Difficulty.FACIL, SettingsManager.Difficulty.DIFICIL)
+	)
+	SettingsManager.player_skin = "alex"
+	SettingsManager.save_settings()
+	call_deferred("_launch_campaign")
+
+
+func _launch_campaign() -> void:
+	await _start_gameplay_scene(SettingsManager.GAME_SCENE)
+
+
 func transition_to_demo_pantano() -> void:
 	await _start_gameplay_scene(SettingsManager.DEMO_PANTANO_SCENE)
 
 
 func _start_gameplay_scene(scene_path: String) -> void:
 	if _is_transitioning:
-		return
+		push_warning("MenuStateMachine: reiniciando inicio de partida bloqueado")
+		_is_transitioning = false
+	if SceneTransition.has_method("force_reset"):
+		SceneTransition.force_reset()
 	_is_transitioning = true
 
 	_deactivate_current_state()
@@ -88,10 +104,7 @@ func _start_gameplay_scene(scene_path: String) -> void:
 	AudioManager.stop_menu_music(0.6)
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	if scene_path == SettingsManager.GAME_SCENE:
-		await SceneTransition.change_scene_with_cinematic("intro_campaign", scene_path)
-	else:
-		await SceneTransition.change_scene(scene_path)
+	await SceneTransition.change_scene(scene_path)
 	_is_transitioning = false
 
 

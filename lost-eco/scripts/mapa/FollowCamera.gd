@@ -11,6 +11,7 @@ func _ready() -> void:
 	zoom = Vector2(2, 2)
 	position_smoothing_enabled = true
 	position_smoothing_speed = follow_speed
+	make_current()
 
 
 func focus_on(world_pos: Vector2, hold_seconds: float = 1.4) -> void:
@@ -18,6 +19,14 @@ func focus_on(world_pos: Vector2, hold_seconds: float = 1.4) -> void:
 	_focus_blend = 1.0
 	await get_tree().create_timer(hold_seconds).timeout
 	_focus_blend = 0.0
+
+
+func set_map_limits(map_width_px: int, map_height_px: int) -> void:
+	limit_enabled = true
+	limit_left = 0
+	limit_top = 0
+	limit_right = map_width_px
+	limit_bottom = map_height_px
 
 
 func _process(delta: float) -> void:

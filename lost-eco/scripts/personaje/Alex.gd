@@ -26,6 +26,8 @@ var _gothic_visual: GothicPlayerVisual = null
 
 func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
+	collision_layer = 1
+	collision_mask = 1
 	GameManager.player = self
 	add_to_group("player")
 	GameManager.empathy_changed.connect(_on_empathy_changed)
@@ -74,8 +76,8 @@ func _setup_gothic_sprite_visual() -> void:
 		_gothic_visual.name = "GothicVisual"
 		add_child(_gothic_visual)
 	var skin := "alex"
-	if SettingsManager and not SettingsManager.player_skin.is_empty():
-		skin = SettingsManager.player_skin
+	if SettingsManager:
+		skin = SettingsManager.player_skin if SettingsManager.player_skin else "alex"
 	_gothic_visual.setup(self, skin)
 
 
@@ -159,11 +161,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, BASE_SPEED * 4.0 * delta)
 		if _gothic_visual:
-			_gothic_visual.update_motion(velocity, true, false, false)
+			var anim_vel := velocity
+			if anim_vel.length() > 10.0:
+				anim_vel = anim_vel.normalized() * BASE_SPEED * speed_multiplier
+			_gothic_visual.update_motion(anim_vel, true, false, false)
 		else:
 			_animate_idle(delta)
 
-	move_and_slide()
+	GridMapPhysics.move_body(self, velocity, delta)
 
 
 func _get_input_direction() -> Vector2:

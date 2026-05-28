@@ -1,29 +1,9 @@
 extends Node2D
 
-# ── Mapa (32 columnas × 20 filas) ────────────────────────────────────────────
-# S = Inicio | E = Eco | B = Jefe | Cristales y sellos en tiles fijos
-const MAP = [
-	"################################",
-	"#S.............................#",
-	"#....E.........................#",
-	"#..............................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
-	"#........................E.....#",
-	"#..............................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
-	"#.........E....................#",
-	"#..............................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
-	"#................B.............#",
-	"#..............................#",
-	"################################",
-]
+# ── Mapa cueva (41×27, salas conectadas) ───────────────────────────────────
+var MAP: Array = []
+var _spawn_tile: Vector2i = Vector2i(3, 3)
+var _enemy_tiles: Array[Vector2i] = []
 
 const TS = 16
 const FLOOR_COLOR       = Color(0.14, 0.13, 0.17)
@@ -57,24 +37,17 @@ var _hint_cooldown: float = 0.0
 var _boss_hint_cd: float = 0.0
 
 const MEMORY_TILES = [
-	Vector2i(7, 2),
-	Vector2i(5, 12),
-	Vector2i(24, 16),
+	Vector2i(5, 4),
+	Vector2i(32, 4),
+	Vector2i(14, 13),
 ]
 const SEAL_TILES = [
-	Vector2i(18, 4),
-	Vector2i(10, 8),
-	Vector2i(16, 14),
+	Vector2i(8, 6),
+	Vector2i(30, 6),
+	Vector2i(18, 21),
 ]
 
 var enemies: Array = []
-const ENEMY_TILES = [
-	Vector2i(14,  2),
-	Vector2i( 8,  7),
-	Vector2i(26,  8),
-	Vector2i(10, 12),
-	Vector2i(20, 16),
-]
 
 const ENEMY_MSGS = [
 	"Tu reflejo te persigue...\n¿reconoces lo que hiciste?  -1 vida",
@@ -105,7 +78,12 @@ var _atmosphere: GothicAtmosphere = null
 func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	RenderingServer.set_default_clear_color(Color(0.09, 0.08, 0.14))
+	RenderingServer.set_default_clear_color(Color(0.16, 0.14, 0.22))
+	MAP = MazeGenerator.build_zone3_cave()
+	_cache_spawn_tile()
+	_enemy_tiles = DifficultySettings.pick_enemy_tiles(
+		MAP, DifficultySettings.get_enemy_count(5, 3), _spawn_tile, 72.0
+	)
 	var fog_ui := get_node_or_null("CanvasLayer")
 	if fog_ui:
 		fog_ui.visible = false
@@ -114,6 +92,7 @@ func _ready() -> void:
 	_spawn_seals()
 	_spawn_enemies()
 	_setup_hud()
+	_configure_camera_limits()
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	call_deferred("_finish_player_setup")
 
@@ -131,6 +110,21 @@ func _finish_player_setup() -> void:
 			GameManager.player.action_performed.connect(_on_player_peace_action)
 
 
+func _cache_spawn_tile() -> void:
+	for y in MAP.size():
+		var row: String = MAP[y]
+		for x in row.length():
+			if row[x] == "S":
+				_spawn_tile = Vector2i(x, y)
+				return
+
+
+func _configure_camera_limits() -> void:
+	var cam := get_node_or_null("Camera2D")
+	if cam and cam.has_method("set_map_limits"):
+		cam.set_map_limits(MAP[0].length() * TS, MAP.size() * TS)
+
+
 func _on_player_peace_action(action_name: String, _intensity: float) -> void:
 	if action_name == "drop_weapon":
 		_try_heal_boss()
@@ -144,7 +138,6 @@ func _generate_map() -> void:
 			match c:
 				"#":
 					walls.append(Rect2(pos, Vector2(TS, TS)))
-					_add_wall(pos)
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					if randf() < 0.16:
@@ -163,22 +156,12 @@ func _generate_map() -> void:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					if randf() < 0.16:
 						floor_shades.append(Rect2(pos, Vector2(TS, TS)))
+	ZoneMapCollider.build(self, walls)
 	queue_redraw()
 
 
 func _draw() -> void:
 	GothicTilePainter.draw_zone_map(self, floors, floor_shades, walls, "cave")
-
-
-func _add_wall(pos: Vector2) -> void:
-	var b = StaticBody2D.new()
-	b.global_position = pos + Vector2(TS / 2.0, TS / 2.0)
-	add_child(b)
-	var c = CollisionShape2D.new()
-	var s = RectangleShape2D.new()
-	s.size = Vector2(TS, TS)
-	c.shape = s
-	b.add_child(c)
 
 
 func _spawn_memories() -> void:
@@ -458,8 +441,8 @@ func _heal_boss(_player: Node) -> void:
 
 
 func _spawn_enemies() -> void:
-	for i in ENEMY_TILES.size():
-		var tile = ENEMY_TILES[i]
+	for i in _enemy_tiles.size():
+		var tile = _enemy_tiles[i]
 		var world_pos = Vector2(tile.x * TS, tile.y * TS) + Vector2(TS / 2.0, TS / 2.0)
 		_create_enemy(world_pos, i)
 
@@ -493,7 +476,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	enemies.append({
 		"node": enemy,
 		"area": area,
-		"speed": 18.0 + idx * 2.0,
+		"speed": (18.0 + idx * 2.0) * DifficultySettings.get_speed_mult(),
 	})
 	EnemyBehavior.init_entry(enemies[-1], world_pos)
 
@@ -501,7 +484,7 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
 		return
-	p.set_meta("enemy_cd", 1.5)
+	p.set_meta("enemy_cd", DifficultySettings.get_hit_cooldown(1.5))
 	GameManager.take_damage()
 	if is_instance_valid(p):
 		p.take_hit(source_pos)
@@ -551,19 +534,9 @@ func _use_light_pulse() -> void:
 	tween_flash.tween_property(GameManager.player, "modulate", Color(2.5, 1.5, 3.0), 0.08)
 	tween_flash.tween_property(GameManager.player, "modulate", Color(1.0, 1.0, 1.0), 0.25)
 
-	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en):
-			continue
-		if en.global_position.distance_to(player_pos) <= PULSE_RADIUS:
-			var push_dir = (en.global_position - player_pos).normalized()
-			if push_dir == Vector2.ZERO:
-				push_dir = Vector2.RIGHT
-			en.global_position += push_dir * 55.0
-			en.set_meta("stunned", STUN_TIME)
-			var ar: Area2D = ed["area"]
-			if is_instance_valid(ar):
-				ar.global_position = en.global_position
+	var removed := EnemyBehavior.eliminate_in_radius(enemies, player_pos, PULSE_RADIUS)
+	if removed > 0:
+		GameManager.add_score(removed * 50)
 
 	_try_light_seals(player_pos)
 
@@ -683,14 +656,12 @@ func _process(delta: float) -> void:
 
 	if not GameManager.player:
 		return
-	if _gothic_player:
-		var vel := GameManager.player.velocity
-		_gothic_player.update_motion(vel, true, false, false)
 	var player_pos = GameManager.player.global_position
 
 	_event_timer -= delta
 	if _event_timer <= 0.0:
-		_event_timer = randf_range(20.0, 28.0)
+		var wait := DifficultySettings.get_surge_wait(20.0, 28.0)
+		_event_timer = randf_range(wait.x, wait.y)
 		_trigger_cave_echo()
 
 	if not _boss_arena_active:

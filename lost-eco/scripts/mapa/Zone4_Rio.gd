@@ -1,29 +1,9 @@
 extends Node2D
 
-# ── Mapa (32 columnas × 20 filas) ────────────────────────────────────────────
-# S = Inicio | E = Eco | X = Salida | # = Orilla tropical | . = Agua del río
-const MAP = [
-	"################################",
-	"#S.............................#",
-	"#....E.........................#",
-	"#..............................#",
-	"#..........####................#",
-	"#..........#..#................#",
-	"#..........#..#................#",
-	"#........................E.....#",
-	"#..........####................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
-	"#.........E....................#",
-	"#..............................#",
-	"#..............................#",
-	"##########..#########..#########",
-	"#..............................#",
-	"#..............................#",
-	"#.............................X#",
-	"################################",
-]
+# ── Mapa río (45×25, corriente central e islas) ──────────────────────────────
+var MAP: Array = []
+var _spawn_tile: Vector2i = Vector2i(3, 3)
+var _enemy_tiles: Array[Vector2i] = []
 
 const TS = 16
 const WATER_COLOR         = Color(0.18, 0.42, 0.72)
@@ -49,13 +29,6 @@ var exit_unlocked: bool = false
 var _transitioning: bool = false
 
 var enemies: Array = []
-const ENEMY_TILES = [
-	Vector2i(10,  2),
-	Vector2i(26,  4),
-	Vector2i( 6,  8),
-	Vector2i(20, 12),
-	Vector2i(16, 17),
-]
 
 const ENEMY_MSGS = [
 	"La corriente te arrastra...\nhacia lo que evitaste.  -1 vida",
@@ -78,10 +51,16 @@ var _gothic_player: GothicPlayerVisual = null
 func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	RenderingServer.set_default_clear_color(Color(0.08, 0.22, 0.38))
+	RenderingServer.set_default_clear_color(Color(0.12, 0.28, 0.42))
+	MAP = MazeGenerator.build_zone4_river()
+	_cache_spawn_tile()
+	_enemy_tiles = DifficultySettings.pick_enemy_tiles(
+		MAP, DifficultySettings.get_enemy_count(5, 4), _spawn_tile, 72.0
+	)
 	_generate_map()
 	_spawn_enemies()
 	_setup_hud()
+	_configure_camera_limits()
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
 	call_deferred("_finish_player_setup")
@@ -98,6 +77,21 @@ func _finish_player_setup() -> void:
 		GameManager.player.set_speed_multiplier(0.70)
 
 
+func _cache_spawn_tile() -> void:
+	for y in MAP.size():
+		var row: String = MAP[y]
+		for x in row.length():
+			if row[x] == "S":
+				_spawn_tile = Vector2i(x, y)
+				return
+
+
+func _configure_camera_limits() -> void:
+	var cam := get_node_or_null("Camera2D")
+	if cam and cam.has_method("set_map_limits"):
+		cam.set_map_limits(MAP[0].length() * TS, MAP.size() * TS)
+
+
 func _generate_map() -> void:
 	for y in MAP.size():
 		for x in MAP[y].length():
@@ -106,7 +100,6 @@ func _generate_map() -> void:
 			match c:
 				"#":
 					walls.append(Rect2(pos, Vector2(TS, TS)))
-					_add_wall(pos)
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 					_add_water_zone(pos)
@@ -123,22 +116,12 @@ func _generate_map() -> void:
 					if randf() < 0.14:
 						water_shades.append(Rect2(pos, Vector2(TS, TS)))
 					_add_water_zone(pos)
+	ZoneMapCollider.build(self, walls)
 	queue_redraw()
 
 
 func _draw() -> void:
 	GothicTilePainter.draw_zone_map(self, floors, water_shades, walls, "river")
-
-
-func _add_wall(pos: Vector2) -> void:
-	var b = StaticBody2D.new()
-	b.global_position = pos + Vector2(TS / 2.0, TS / 2.0)
-	add_child(b)
-	var c = CollisionShape2D.new()
-	var s = RectangleShape2D.new()
-	s.size = Vector2(TS, TS)
-	c.shape = s
-	b.add_child(c)
 
 
 func _add_water_zone(pos: Vector2) -> void:
@@ -223,8 +206,8 @@ func _unlock_exit() -> void:
 
 
 func _spawn_enemies() -> void:
-	for i in ENEMY_TILES.size():
-		var tile = ENEMY_TILES[i]
+	for i in _enemy_tiles.size():
+		var tile = _enemy_tiles[i]
 		var world_pos = Vector2(tile.x * TS, tile.y * TS) + Vector2(TS / 2.0, TS / 2.0)
 		_create_enemy(world_pos, i)
 
@@ -257,14 +240,14 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	enemies.append({
 		"node": enemy,
 		"area": area,
-		"speed": 16.0 + idx * 1.5,
+		"speed": (16.0 + idx * 1.5) * DifficultySettings.get_speed_mult(),
 	})
 
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
 		return
-	p.set_meta("enemy_cd", 1.5)
+	p.set_meta("enemy_cd", DifficultySettings.get_hit_cooldown(1.5))
 	GameManager.take_damage()
 	if is_instance_valid(p):
 		p.take_hit(source_pos)
@@ -287,19 +270,9 @@ func _use_light_pulse() -> void:
 	tween_flash.tween_property(GameManager.player, "modulate", Color(1.2, 2.2, 2.5), 0.08)
 	tween_flash.tween_property(GameManager.player, "modulate", Color(1.0, 1.0, 1.0), 0.25)
 
-	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en):
-			continue
-		if en.global_position.distance_to(player_pos) <= PULSE_RADIUS:
-			var push_dir = (en.global_position - player_pos).normalized()
-			if push_dir == Vector2.ZERO:
-				push_dir = Vector2.RIGHT
-			en.global_position += push_dir * 52.0
-			en.set_meta("stunned", STUN_TIME)
-			var ar: Area2D = ed["area"]
-			if is_instance_valid(ar):
-				ar.global_position = en.global_position
+	var removed := EnemyBehavior.eliminate_in_radius(enemies, player_pos, PULSE_RADIUS)
+	if removed > 0:
+		GameManager.add_score(removed * 50)
 
 	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(0.55, 0.90, 1.0), 1.5)
 
@@ -316,8 +289,6 @@ func _process(delta: float) -> void:
 
 	if not GameManager.player:
 		return
-	if _gothic_player:
-		_gothic_player.update_motion(GameManager.player.velocity, true)
 	var player_pos = GameManager.player.global_position
 
 	for ed in enemies:

@@ -32,16 +32,19 @@ func setup(zone: Node2D, player: Node2D, theme: String = "cave") -> void:
 
 
 func _apply_theme_defaults() -> void:
+	var bonus := DifficultySettings.get_light_radius_bonus() if DifficultySettings else 0.0
 	match _theme:
 		"cave_bright":
-			_light_radius_base = 0.46
+			_light_radius_base = 0.58 + bonus
 			_light_radius_pulse = 0.025
 		"labyrinth":
-			_light_radius_base = 0.44
+			_light_radius_base = 0.58 + bonus
 		"swamp":
-			_light_radius_base = 0.30
+			_light_radius_base = 0.52 + bonus
+		"river":
+			_light_radius_base = 0.50 + bonus
 		_:
-			_light_radius_base = 0.22
+			_light_radius_base = 0.48 + bonus
 
 
 func _attach_modulate() -> void:
@@ -53,17 +56,17 @@ func _attach_modulate() -> void:
 		_zone_root.move_child(_modulate, 0)
 	match _theme:
 		"swamp":
-			_modulate.color = Color(0.32, 0.34, 0.48, 1.0)
+			_modulate.color = Color(0.52, 0.54, 0.62, 1.0)
 		"river":
-			_modulate.color = Color(0.18, 0.28, 0.42, 1.0)
+			_modulate.color = Color(0.42, 0.52, 0.62, 1.0)
 		"cave_bright":
-			_modulate.color = Color(0.44, 0.42, 0.54, 1.0)
+			_modulate.color = Color(0.58, 0.56, 0.66, 1.0)
 		"labyrinth":
-			_modulate.color = Color(0.38, 0.36, 0.48, 1.0)
+			_modulate.color = Color(0.54, 0.52, 0.62, 1.0)
 		"cave":
-			_modulate.color = Color(0.22, 0.2, 0.32, 1.0)
+			_modulate.color = Color(0.46, 0.44, 0.54, 1.0)
 		_:
-			_modulate.color = Color(0.28, 0.26, 0.38, 1.0)
+			_modulate.color = Color(0.50, 0.48, 0.58, 1.0)
 
 
 func _attach_vignette() -> void:
@@ -79,16 +82,16 @@ func _attach_vignette() -> void:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = VIGNETTE_SHADER
-	mat.set_shader_parameter("intensity", 0.78)
-	mat.set_shader_parameter("softness", 0.48)
-	mat.set_shader_parameter("tint", Color(0.008, 0.006, 0.028, 1.0))
+	mat.set_shader_parameter("intensity", 0.42)
+	mat.set_shader_parameter("softness", 0.55)
+	mat.set_shader_parameter("tint", Color(0.02, 0.02, 0.06, 1.0))
 	rect.material = mat
 	rect.color = Color.WHITE
 	_vignette_layer.add_child(rect)
 	_vignette_rect = rect
 	if _theme == "cave_bright":
-		mat.set_shader_parameter("intensity", 0.40)
-		mat.set_shader_parameter("softness", 0.58)
+		mat.set_shader_parameter("intensity", 0.28)
+		mat.set_shader_parameter("softness", 0.62)
 
 
 func _attach_parallax() -> void:
@@ -118,17 +121,25 @@ func _attach_fog() -> void:
 	_fog_mat = ShaderMaterial.new()
 	_fog_mat.shader = FOG_SHADER
 	if _theme == "cave_bright":
-		_fog_mat.set_shader_parameter("light_radius", 0.46)
-		_fog_mat.set_shader_parameter("edge_softness", 0.24)
-		_fog_mat.set_shader_parameter("fog_color", Color(0.05, 0.04, 0.10, 0.52))
+		_fog_mat.set_shader_parameter("light_radius", 0.58)
+		_fog_mat.set_shader_parameter("edge_softness", 0.26)
+		_fog_mat.set_shader_parameter("fog_color", Color(0.08, 0.07, 0.14, 0.38))
 	elif _theme == "labyrinth":
-		_fog_mat.set_shader_parameter("light_radius", 0.44)
-		_fog_mat.set_shader_parameter("edge_softness", 0.20)
-		_fog_mat.set_shader_parameter("fog_color", Color(0.06, 0.05, 0.12, 0.62))
+		_fog_mat.set_shader_parameter("light_radius", 0.58)
+		_fog_mat.set_shader_parameter("edge_softness", 0.24)
+		_fog_mat.set_shader_parameter("fog_color", Color(0.10, 0.08, 0.16, 0.42))
+	elif _theme == "swamp":
+		_fog_mat.set_shader_parameter("light_radius", 0.52)
+		_fog_mat.set_shader_parameter("edge_softness", 0.22)
+		_fog_mat.set_shader_parameter("fog_color", Color(0.08, 0.10, 0.12, 0.45))
+	elif _theme == "river":
+		_fog_mat.set_shader_parameter("light_radius", 0.50)
+		_fog_mat.set_shader_parameter("edge_softness", 0.22)
+		_fog_mat.set_shader_parameter("fog_color", Color(0.06, 0.12, 0.18, 0.40))
 	else:
-		_fog_mat.set_shader_parameter("light_radius", 0.22)
-		_fog_mat.set_shader_parameter("edge_softness", 0.14)
-		_fog_mat.set_shader_parameter("fog_color", Color(0.04, 0.03, 0.08, 0.88))
+		_fog_mat.set_shader_parameter("light_radius", 0.48)
+		_fog_mat.set_shader_parameter("edge_softness", 0.20)
+		_fog_mat.set_shader_parameter("fog_color", Color(0.06, 0.05, 0.10, 0.50))
 	rect.material = _fog_mat
 	rect.color = Color.WHITE
 	_fog_layer.add_child(rect)
@@ -153,3 +164,7 @@ func _process(_delta: float) -> void:
 	_fog_mat.set_shader_parameter("player_pos", uv)
 	var radius := _light_radius_base + sin(Time.get_ticks_msec() * 0.001) * _light_radius_pulse
 	_fog_mat.set_shader_parameter("light_radius", radius)
+
+
+func get_fog_material() -> ShaderMaterial:
+	return _fog_mat

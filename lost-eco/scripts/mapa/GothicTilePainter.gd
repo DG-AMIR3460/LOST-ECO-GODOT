@@ -24,31 +24,40 @@ static func _color(pal: Dictionary, key: String) -> Color:
 
 
 static func _palette(theme: String) -> Dictionary:
+	if theme == "labyrinth":
+		return {
+			"floor": Color(0.28, 0.24, 0.34),
+			"floor_hi": Color(0.38, 0.34, 0.46),
+			"floor_lo": Color(0.20, 0.18, 0.26),
+			"wall": Color(0.12, 0.10, 0.16),
+			"moss": Color(0.34, 0.38, 0.28, 0.35),
+			"crack": Color(0.08, 0.06, 0.12, 0.45),
+		}
 	if theme == "river":
 		return {
-			"floor": Color(0.08, 0.18, 0.28),
-			"floor_hi": Color(0.14, 0.28, 0.42),
-			"floor_lo": Color(0.05, 0.12, 0.2),
-			"wall": Color(0.04, 0.08, 0.14),
-			"moss": Color(0.2, 0.45, 0.38, 0.3),
-			"crack": Color(0.02, 0.05, 0.1, 0.5),
+			"floor": Color(0.16, 0.30, 0.44),
+			"floor_hi": Color(0.24, 0.40, 0.56),
+			"floor_lo": Color(0.10, 0.22, 0.34),
+			"wall": Color(0.10, 0.24, 0.16),
+			"moss": Color(0.28, 0.55, 0.42, 0.35),
+			"crack": Color(0.06, 0.10, 0.14, 0.45),
 		}
 	if theme == "swamp":
 		return {
-			"floor": Color(0.12, 0.16, 0.08),
-			"floor_hi": Color(0.18, 0.22, 0.11),
-			"floor_lo": Color(0.08, 0.1, 0.05),
-			"wall": Color(0.05, 0.06, 0.04),
-			"moss": Color(0.22, 0.32, 0.14, 0.35),
-			"crack": Color(0.02, 0.02, 0.03, 0.5),
+			"floor": Color(0.22, 0.28, 0.16),
+			"floor_hi": Color(0.30, 0.36, 0.22),
+			"floor_lo": Color(0.16, 0.20, 0.12),
+			"wall": Color(0.12, 0.14, 0.10),
+			"moss": Color(0.34, 0.44, 0.22, 0.40),
+			"crack": Color(0.08, 0.08, 0.10, 0.45),
 		}
 	return {
-		"floor": Color(0.14, 0.13, 0.17),
-		"floor_hi": Color(0.22, 0.2, 0.26),
-		"floor_lo": Color(0.09, 0.08, 0.11),
-		"wall": Color(0.06, 0.05, 0.08),
-		"moss": Color(0.18, 0.2, 0.28, 0.25),
-		"crack": Color(0.02, 0.015, 0.04, 0.55),
+		"floor": Color(0.24, 0.22, 0.28),
+		"floor_hi": Color(0.34, 0.32, 0.40),
+		"floor_lo": Color(0.16, 0.14, 0.20),
+		"wall": Color(0.12, 0.10, 0.14),
+		"moss": Color(0.28, 0.30, 0.38, 0.30),
+		"crack": Color(0.08, 0.06, 0.12, 0.45),
 	}
 
 

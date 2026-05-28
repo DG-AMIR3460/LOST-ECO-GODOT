@@ -38,9 +38,14 @@ func play_bridge_and_change_scene(completed_zone: int, scene_path: String, fade_
 	await _run_scene_change(scene_path, key, fade_duration)
 
 
+func force_reset() -> void:
+	_is_transitioning = false
+
+
 func _run_scene_change(scene_path: String, cinematic_id: String, fade_duration: float) -> void:
 	if _is_transitioning:
-		return
+		push_warning("SceneTransition: reiniciando transición bloqueada")
+		_is_transitioning = false
 	_is_transitioning = true
 	DialogueManager.clear_all()
 	GameManager.close_pause()

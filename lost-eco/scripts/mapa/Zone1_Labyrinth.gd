@@ -7,40 +7,9 @@ var fog_material: ShaderMaterial
 var echoes_collected: int = 0
 const TOTAL_ECHOES = 4
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MAPA  (32 columnas × 20 filas — cada fila EXACTAMENTE 32 chars)
-#
-#   #  = Pared con colisión   (borde exterior siempre #)
-#   .  = Suelo libre
-#   S  = Posición inicial de Alex
-#   E  = Eco de luz (coleccionable)
-#   X  = Salida (se desbloquea al recoger los 4 ecos)
-#
-#  Las TRES filas de muros (5, 10, 15) tienen huecos en cols 10-11 y 21-22.
-#  Esto garantiza un camino COMPLETAMENTE CONECTADO de S → todos los Ecos → X.
-# ─────────────────────────────────────────────────────────────────────────────
-const MAP = [
-	"################################",  # R0  borde superior
-	"#S.............................#",  # R1  AREA 1 (filas 1-4)  — inicio
-	"#....E.........................#",  # R2  E1 en col 5
-	"#..............................#",  # R3
-	"#..............................#",  # R4
-	"##########..#########..#########",  # R5  MURO con huecos en cols 10-11 y 21-22
-	"#..............................#",  # R6  AREA 2 (filas 6-9)
-	"#........................E.....#",  # R7  E2 en col 25
-	"#..............................#",  # R8
-	"#..............................#",  # R9
-	"##########..#########..#########",  # R10 MURO
-	"#..............................#",  # R11 AREA 3 (filas 11-14)
-	"#.........E....................#",  # R12 E3 en col 10
-	"#..............................#",  # R13
-	"#..............................#",  # R14
-	"##########..#########..#########",  # R15 MURO
-	"#..............................#",  # R16 AREA 4 (filas 16-18)
-	"#.....................E........#",  # R17 E4 en col 22
-	"#.............................X#",  # R18 SALIDA X en col 30
-	"################################",  # R19 borde inferior
-]
+# ── Mapa generado (laberinto real 49×33) ─────────────────────────────────────
+var MAP: Array = []
+var _spawn_tile: Vector2i = Vector2i(1, 1)
 
 const TS = 16
 const WALL_COLOR        = Color(0.08, 0.07, 0.13)
@@ -64,17 +33,8 @@ var _event_timer: float = 18.0
 # ── Enemigos (Sombras del Acoso) ──────────────────────────────────────────────
 var enemies: Array = []   # [{node, area, speed}]
 
-# Posiciones tile (col, fila) — 8 sombras repartidas por el mapa
-const ENEMY_TILES = [
-	Vector2i(15,  2),
-	Vector2i(20,  4),
-	Vector2i( 8,  3),
-	Vector2i( 5,  7),
-	Vector2i(20,  8),
-	Vector2i(25, 12),
-	Vector2i( 8, 13),
-	Vector2i(10, 17),
-]
+# Posiciones tile — se calculan tras generar el laberinto
+var _enemy_tiles: Array[Vector2i] = []
 
 const ENEMY_MSGS = [
 	"Una palabra puede doler\npor años enteros.  -1 vida",
@@ -102,15 +62,27 @@ var _gothic_player: GothicPlayerVisual = null
 func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
-	RenderingServer.set_default_clear_color(Color(0.05, 0.04, 0.10))
-	_generate_map()
-	_spawn_enemies()
-	_setup_hud()
+	RenderingServer.set_default_clear_color(Color(0.14, 0.12, 0.20))
+	call_deferred("_build_level")
 	GameManager.empathy_changed.connect(_on_empathy_changed)
 	GameManager.health_changed.connect(func(_v): _update_hud())
 	GameManager.score_changed.connect(func(_v): _update_hud())
-	call_deferred("_finish_player_setup")
 
+
+func _build_level() -> void:
+	MAP = MazeGenerator.build_zone1_labyrinth()
+	if MAP.is_empty():
+		push_error("Zone1: no se pudo generar el mapa")
+		return
+	_cache_spawn_tile()
+	_enemy_tiles = DifficultySettings.pick_enemy_tiles(
+		MAP, DifficultySettings.get_enemy_count(8, 1), _spawn_tile, 80.0
+	)
+	_generate_map()
+	_spawn_enemies()
+	_setup_hud()
+	_configure_camera_limits()
+	_finish_player_setup()
 	await get_tree().create_timer(0.5).timeout
 	ZoneMissionBriefs.show_for_zone(1)
 
@@ -118,12 +90,30 @@ func _ready() -> void:
 func _finish_player_setup() -> void:
 	var setup := ZoneVisualBootstrap.finish_player_setup(self, MAP, TS, "labyrinth")
 	_gothic_player = setup.get("gothic") as GothicPlayerVisual
+	var atm := setup.get("atmosphere") as GothicAtmosphere
+	if atm:
+		fog_material = atm.get_fog_material()
 	if GameManager.player:
 		GameManager.player.has_weapon = false
 	var cam := get_node_or_null("Camera2D") as Camera2D
 	if cam and GameManager.player:
 		cam.global_position = GameManager.player.global_position
 	queue_redraw()
+
+
+func _cache_spawn_tile() -> void:
+	for y in MAP.size():
+		var row: String = MAP[y]
+		for x in row.length():
+			if row[x] == "S":
+				_spawn_tile = Vector2i(x, y)
+				return
+
+
+func _configure_camera_limits() -> void:
+	var cam := get_node_or_null("Camera2D")
+	if cam and cam.has_method("set_map_limits"):
+		cam.set_map_limits(MAP[0].length() * TS, MAP.size() * TS)
 
 
 # ── Generación del mapa ───────────────────────────────────────────────────────
@@ -135,7 +125,6 @@ func _generate_map() -> void:
 			match c:
 				"#":
 					walls.append(Rect2(pos, Vector2(TS, TS)))
-					_add_wall(pos)
 				"S":
 					floors.append(Rect2(pos, Vector2(TS, TS)))
 				"E":
@@ -146,20 +135,11 @@ func _generate_map() -> void:
 					_spawn_exit(pos)
 				_:
 					floors.append(Rect2(pos, Vector2(TS, TS)))
+	ZoneMapCollider.build(self, walls)
 	queue_redraw()
 
 func _draw() -> void:
-	GothicTilePainter.draw_zone_map(self, floors, [], walls, "cave")
-
-func _add_wall(pos: Vector2) -> void:
-	var b = StaticBody2D.new()
-	b.global_position = pos + Vector2(TS / 2.0, TS / 2.0)
-	add_child(b)
-	var c = CollisionShape2D.new()
-	var s = RectangleShape2D.new()
-	s.size = Vector2(TS, TS)
-	c.shape = s
-	b.add_child(c)
+	GothicTilePainter.draw_zone_map(self, floors, [], walls, "labyrinth")
 
 # ── Ecos ──────────────────────────────────────────────────────────────────────
 func _spawn_echo(pos: Vector2) -> void:
@@ -244,8 +224,8 @@ func _unlock_exit() -> void:
 
 # ── Enemigos (Sombras del Acoso) ──────────────────────────────────────────────
 func _spawn_enemies() -> void:
-	for i in ENEMY_TILES.size():
-		var tile     = ENEMY_TILES[i]
+	for i in _enemy_tiles.size():
+		var tile = _enemy_tiles[i]
 		var world_pos = Vector2(tile.x * TS, tile.y * TS) + Vector2(TS / 2.0, TS / 2.0)
 		_create_enemy(world_pos, i)
 
@@ -278,14 +258,14 @@ func _create_enemy(world_pos: Vector2, idx: int) -> void:
 	enemies.append({
 		"node":  enemy,
 		"area":  area,
-		"speed": 12.0 + idx * 1.0,
+		"speed": (12.0 + idx * 1.2) * DifficultySettings.get_speed_mult(),
 	})
 	EnemyBehavior.init_entry(enemies[-1], world_pos)
 
 func _enemy_hit_player(p: Node, message: String, source_pos: Vector2) -> void:
 	if p.has_meta("enemy_cd") and p.get_meta("enemy_cd") > 0.0:
 		return
-	p.set_meta("enemy_cd", 2.2)
+	p.set_meta("enemy_cd", DifficultySettings.get_hit_cooldown(2.2))
 	GameManager.take_damage()
 	if is_instance_valid(p):
 		p.take_hit(source_pos)
@@ -308,20 +288,14 @@ func _use_light_pulse() -> void:
 	tween_flash.tween_property(GameManager.player, "modulate", Color(3.0, 3.0, 0.5), 0.08)
 	tween_flash.tween_property(GameManager.player, "modulate", Color(1.0, 1.0, 1.0), 0.25)
 
-	# Empujar y aturdir enemigos en radio
-	for ed in enemies:
-		var en: Node2D = ed["node"]
-		if not is_instance_valid(en): continue
-		var dist = en.global_position.distance_to(player_pos)
-		if dist <= PULSE_RADIUS:
-			var push_dir = (en.global_position - player_pos).normalized()
-			if push_dir == Vector2.ZERO:
-				push_dir = Vector2.RIGHT
-			en.global_position += push_dir * 62.0
-			en.set_meta("stunned", STUN_TIME)
-			var ar: Area2D = ed["area"]
-			if is_instance_valid(ar):
-				ar.global_position = en.global_position
+	# Empujar y eliminar enemigos en radio
+	var removed := EnemyBehavior.eliminate_in_radius(enemies, player_pos, PULSE_RADIUS)
+	if removed > 0:
+		GameManager.add_score(removed * 50)
+		DialogueManager.show_corner_notice(
+			"¡%d sombra(s) disipada(s)! +%d pts" % [removed, removed * 50],
+			Color(1.0, 0.95, 0.45), 2.0
+		)
 
 	DialogueManager.show_corner_notice("¡Pulso de Luz!", Color(1.0, 1.0, 0.35), 1.5)
 
@@ -340,13 +314,12 @@ func _process(delta: float) -> void:
 
 	if not GameManager.player:
 		return
-	if _gothic_player:
-		_gothic_player.update_motion(GameManager.player.velocity, true)
 	var player_pos = GameManager.player.global_position
 
 	_event_timer -= delta
 	if _event_timer <= 0.0:
-		_event_timer = randf_range(16.0, 24.0)
+		var wait := DifficultySettings.get_surge_wait(16.0, 24.0)
+		_event_timer = randf_range(wait.x, wait.y)
 		_trigger_shadow_surge()
 
 	for ed in enemies:

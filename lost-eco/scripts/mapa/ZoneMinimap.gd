@@ -39,6 +39,7 @@ var _map_size: Vector2 = Vector2.ZERO
 var _fog_enabled: bool = false
 var _discovered: Dictionary = {}
 var _reveal_radius: int = 4
+var _rest_pos: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -107,7 +108,7 @@ func reveal_near(tile: Vector2i, radius: int = -1) -> void:
 		for dx in range(-r, r + 1):
 			if Vector2(dx, dy).length() > float(r) + 0.5:
 				continue
-			var t := Vector2i(tile.x + dx, tile.y + dy)
+			var t: Vector2i = Vector2i(tile.x + dx, tile.y + dy)
 			if t.x < 0 or t.y < 0 or t.x >= _cols or t.y >= _rows:
 				continue
 			_discovered[_tile_key(t)] = true
@@ -167,12 +168,36 @@ func set_enemy_tiles(tiles: Array[Vector2i]) -> void:
 	queue_redraw()
 
 
+func set_rest_position(pos: Vector2) -> void:
+	_rest_pos = pos
+	position = pos
+
+
 func _process(delta: float) -> void:
 	_pulse += delta * 3.5
 	if _player_tile.x >= 0:
 		var target := _tile_center(_player_tile)
 		_display_player = _display_player.lerp(target, minf(1.0, delta * 14.0))
 		queue_redraw()
+	if GameManager.player == null:
+		return
+	var player: Node2D = GameManager.player as Node2D
+	if player == null:
+		return
+	var vp_size: Vector2 = ZoneHUDAvoidance.viewport_size(self)
+	var player_rect: Rect2 = ZoneHUDAvoidance.player_screen_rect(player)
+	var panel_size: Vector2 = custom_minimum_size
+	if size.x > panel_size.x:
+		panel_size = size
+	position = ZoneHUDAvoidance.slide_panel(
+		position,
+		_rest_pos,
+		panel_size,
+		player_rect,
+		vp_size,
+		delta,
+		ZoneHUDAvoidance.Anchor.BOTTOM_RIGHT
+	)
 
 
 func _draw() -> void:

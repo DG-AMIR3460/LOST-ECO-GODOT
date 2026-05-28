@@ -32,7 +32,9 @@ static func setup_gothic_alex(alex: CharacterBody2D) -> GothicPlayerVisual:
 		gv = GothicPlayerVisual.new()
 		gv.name = "GothicVisual"
 		alex.add_child(gv)
-	var skin := SettingsManager.player_skin if SettingsManager.player_skin else "alex"
+	var skin := "alex"
+	if SettingsManager and SettingsManager.player_skin:
+		skin = SettingsManager.player_skin
 	gv.setup(alex, skin)
 	return gv
 
@@ -68,6 +70,7 @@ static func finish_player_setup(
 	if player.has_method("_ensure_visible_character"):
 		player._ensure_visible_character()
 	out.atmosphere = apply_atmosphere(zone, player, atmosphere_theme)
+	GridMapPhysics.set_map(map, tile_size)
 	return out
 
 

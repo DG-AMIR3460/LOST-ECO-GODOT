@@ -11,6 +11,7 @@ var _score_lbl: Label = null
 var _zone_lbl: Label = null
 var _status_lbl: Label = null
 var _panel: PanelContainer = null
+var _rest_pos: Vector2 = Vector2(4, 4)
 
 
 func setup_compact(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:
@@ -20,6 +21,29 @@ func setup_compact(zone_title: String, max_health: int = 3, max_light: int = 3) 
 	GameManager.score_changed.connect(_on_score)
 	_on_health(GameManager.current_health)
 	_on_score(GameManager.score)
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	if _panel == null or GameManager.player == null:
+		return
+	var player: Node2D = GameManager.player as Node2D
+	if player == null:
+		return
+	var vp_size: Vector2 = ZoneHUDAvoidance.viewport_size(self)
+	var player_rect: Rect2 = ZoneHUDAvoidance.player_screen_rect(player)
+	var panel_size: Vector2 = _panel.get_combined_minimum_size()
+	if _panel.size.x > panel_size.x:
+		panel_size = _panel.size
+	_panel.position = ZoneHUDAvoidance.slide_panel(
+		_panel.position,
+		_rest_pos,
+		panel_size,
+		player_rect,
+		vp_size,
+		delta,
+		ZoneHUDAvoidance.Anchor.TOP_LEFT
+	)
 
 
 func setup(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:
@@ -28,7 +52,7 @@ func setup(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:
 
 func _build_shell(zone_title: String, max_health: int, max_light: int) -> void:
 	_panel = PanelContainer.new()
-	_panel.position = Vector2(4, 4)
+	_panel.position = _rest_pos
 	var pstyle := StyleBoxFlat.new()
 	pstyle.bg_color = Color(0.06, 0.05, 0.10, 0.92)
 	pstyle.border_color = Color(0.82, 0.68, 0.28, 0.9)

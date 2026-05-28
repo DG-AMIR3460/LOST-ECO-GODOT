@@ -5,6 +5,7 @@ extends Node
 signal settings_changed
 
 enum ColorblindMode { NORMAL, PROTANOPIA, DEUTERANOPIA, TRITANOPIA }
+enum Difficulty { FACIL, NORMAL, DIFICIL }
 
 const SETTINGS_PATH := "user://settings.cfg"
 const MENU_SCENE := "res://scenes/menu.tscn"
@@ -36,7 +37,8 @@ var sfx_volume: float = 1.0
 var fullscreen: bool = false
 var resolution_index: int = 2
 var colorblind_mode: ColorblindMode = ColorblindMode.NORMAL
-var player_skin: String = "exploradora"
+var player_skin: String = "alex"
+var difficulty_index: int = Difficulty.NORMAL
 
 var _filter_layer: CanvasLayer
 var _filter_rect: ColorRect
@@ -106,6 +108,7 @@ func _load_settings() -> void:
 	resolution_index = config.get_value("display", "resolution_index", resolution_index)
 	colorblind_mode = config.get_value("accessibility", "colorblind_mode", colorblind_mode)
 	player_skin = config.get_value("player", "skin", player_skin)
+	difficulty_index = config.get_value("gameplay", "difficulty", difficulty_index)
 
 
 func save_settings() -> void:
@@ -117,6 +120,7 @@ func save_settings() -> void:
 	config.set_value("display", "resolution_index", resolution_index)
 	config.set_value("accessibility", "colorblind_mode", colorblind_mode)
 	config.set_value("player", "skin", player_skin)
+	config.set_value("gameplay", "difficulty", difficulty_index)
 	config.save(SETTINGS_PATH)
 	settings_changed.emit()
 
@@ -242,6 +246,23 @@ func set_resolution_index(index: int) -> void:
 func set_colorblind_mode(mode: ColorblindMode) -> void:
 	colorblind_mode = mode
 	apply_colorblind_filter()
+
+
+func set_difficulty_index(index: int) -> void:
+	difficulty_index = clampi(index, Difficulty.FACIL, Difficulty.DIFICIL)
+
+
+func get_difficulty_label(index: int = -1) -> String:
+	var i := index if index >= 0 else difficulty_index
+	match i:
+		Difficulty.FACIL:
+			return "Fácil"
+		Difficulty.NORMAL:
+			return "Normal"
+		Difficulty.DIFICIL:
+			return "Difícil"
+		_:
+			return "Normal"
 
 
 func get_resolution_label(index: int) -> String:

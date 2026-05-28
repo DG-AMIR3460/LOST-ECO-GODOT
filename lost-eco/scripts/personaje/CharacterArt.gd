@@ -24,8 +24,29 @@ const SPRITE_FILES: Dictionary = {
 	"espectro": "espectro.png",
 }
 
+const FACES_LEFT: Dictionary = {
+	"alex": true,
+	"mateo": false,
+	"exploradora": false,
+	"monje": false,
+	"medium": false,
+	"cazador": false,
+	"tirador": false,
+	"niña_perdida": false,
+	"navegante": false,
+	"susurrantes": true,
+	"parasito": true,
+	"ahogados": true,
+	"hombre_lodo": true,
+	"humo_negro": true,
+	"vigilantes": false,
+	"caballero": false,
+	"espectro": true,
+}
+
+
 const DEFAULT_SCALE: Dictionary = {
-	"alex": 0.16,
+	"alex": 0.112,
 	"mateo": 0.36,
 	"exploradora": 0.15,
 	"monje": 0.15,
@@ -57,6 +78,10 @@ static func is_ready() -> bool:
 
 static func get_sprite_scale(key: String, scale_override: float = -1.0) -> float:
 	return scale_override if scale_override > 0.0 else DEFAULT_SCALE.get(key, 0.14)
+
+
+static func sprite_faces_left(key: String) -> bool:
+	return FACES_LEFT.get(key, false)
 
 
 static func make_sprite(key: String, scale_override: float = -1.0) -> Sprite2D:

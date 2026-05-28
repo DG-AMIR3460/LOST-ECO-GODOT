@@ -37,4 +37,5 @@ static func anchor_minimap(zone: Node, minimap: ZoneMinimap) -> void:
 		return
 	var vp := zone.get_viewport().get_visible_rect().size
 	var sz := minimap.custom_minimum_size
-	minimap.position = Vector2(vp.x - sz.x - 2.0, vp.y - sz.y - 2.0)
+	var anchor := Vector2(vp.x - sz.x - 2.0, vp.y - sz.y - 2.0)
+	minimap.set_rest_position(anchor)
