@@ -35,7 +35,7 @@ func _process(delta: float) -> void:
 	var panel_size: Vector2 = _panel.get_combined_minimum_size()
 	if _panel.size.x > panel_size.x:
 		panel_size = _panel.size
-	_panel.position = ZoneHUDAvoidance.slide_panel(
+	var result: Dictionary = ZoneHUDAvoidance.update_panel(
 		_panel.position,
 		_rest_pos,
 		panel_size,
@@ -44,6 +44,8 @@ func _process(delta: float) -> void:
 		delta,
 		ZoneHUDAvoidance.Anchor.TOP_LEFT
 	)
+	_panel.position = result["position"]
+	_panel.visible = result["visible"]
 
 
 func setup(zone_title: String, max_health: int = 3, max_light: int = 3) -> void:

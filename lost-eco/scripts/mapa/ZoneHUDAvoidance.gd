@@ -1,6 +1,6 @@
 extends RefCounted
 class_name ZoneHUDAvoidance
-## Desplaza paneles de HUD cuando el jugador queda debajo.
+## Evita que el HUD tape al jugador: salta a la esquina opuesta o se oculta.
 
 
 enum Anchor { TOP_LEFT, BOTTOM_RIGHT }
@@ -23,66 +23,45 @@ static func player_screen_rect(player: Node2D) -> Rect2:
 	return Rect2(center - Vector2(7.0, 11.0), Vector2(14.0, 22.0))
 
 
-static func slide_panel(
+static func update_panel(
 	current: Vector2,
 	rest: Vector2,
 	panel_size: Vector2,
 	player_rect: Rect2,
 	vp_size: Vector2,
 	delta: float,
-	anchor: int = Anchor.TOP_LEFT,
-	speed: float = 18.0
-) -> Vector2:
+	anchor: int = Anchor.TOP_LEFT
+) -> Dictionary:
 	if panel_size.x < 1.0 or panel_size.y < 1.0:
-		return rest
-	var panel_rect := Rect2(current, panel_size)
-	var target: Vector2 = rest
-	if panel_rect.intersects(player_rect):
-		target = _find_clear_position(rest, panel_size, player_rect, vp_size, anchor)
-	var blend: float = clampf(delta * speed, 0.0, 1.0)
-	return current.lerp(target, blend)
+		return {"position": rest, "visible": true}
+
+	var dodge: Vector2 = _dodge_position(panel_size, vp_size, anchor)
+	var home_rect: Rect2 = Rect2(rest, panel_size).grow(10.0)
+	var dodge_rect: Rect2 = Rect2(dodge, panel_size)
+
+	if home_rect.intersects(player_rect):
+		if dodge_rect.intersects(player_rect):
+			return {"position": dodge, "visible": false}
+		return {"position": dodge, "visible": true}
+
+	if current.distance_squared_to(rest) > 0.5:
+		var blend: float = clampf(delta * 9.0, 0.0, 1.0)
+		return {"position": current.lerp(rest, blend), "visible": true}
+
+	return {"position": rest, "visible": true}
 
 
-static func _find_clear_position(
-	rest: Vector2,
-	panel_size: Vector2,
-	player_rect: Rect2,
-	vp_size: Vector2,
-	anchor: int
-) -> Vector2:
-	var pc: Vector2 = player_rect.get_center()
-	var margin: float = 12.0
-	var opts: Array[Vector2] = []
+static func _dodge_position(panel_size: Vector2, vp_size: Vector2, anchor: int) -> Vector2:
 	match anchor:
 		Anchor.TOP_LEFT:
-			opts = [
-				Vector2(pc.x + player_rect.size.x * 0.5 + margin, rest.y),
-				Vector2(rest.x, pc.y + player_rect.size.y * 0.5 + margin),
-				Vector2(vp_size.x - panel_size.x - 4.0, 4.0),
-				Vector2(4.0, vp_size.y - panel_size.y - 4.0),
-			]
+			return Vector2(
+				vp_size.x - panel_size.x - 4.0,
+				4.0
+			)
 		Anchor.BOTTOM_RIGHT:
-			opts = [
-				Vector2(pc.x - panel_size.x - margin, rest.y),
-				Vector2(rest.x, pc.y - panel_size.y - margin),
-				Vector2(4.0, vp_size.y - panel_size.y - 4.0),
-				Vector2(vp_size.x - panel_size.x - 4.0, 4.0),
-			]
+			return Vector2(
+				4.0,
+				vp_size.y - panel_size.y - 4.0
+			)
 		_:
-			opts = [rest]
-	for opt: Vector2 in opts:
-		var pos: Vector2 = _clamp_pos(opt, panel_size, vp_size)
-		if not Rect2(pos, panel_size).intersects(player_rect):
-			return pos
-	return _clamp_pos(
-		rest + Vector2(margin, margin) if anchor == Anchor.TOP_LEFT else rest - Vector2(margin, margin),
-		panel_size,
-		vp_size
-	)
-
-
-static func _clamp_pos(pos: Vector2, panel_size: Vector2, vp_size: Vector2) -> Vector2:
-	return Vector2(
-		clampf(pos.x, 2.0, maxf(2.0, vp_size.x - panel_size.x - 2.0)),
-		clampf(pos.y, 2.0, maxf(2.0, vp_size.y - panel_size.y - 2.0))
-	)
+			return Vector2(4.0, 4.0)
